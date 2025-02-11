@@ -1,7 +1,11 @@
 "use client";
 
-import { Button } from "./ui/button";
 import { HamburgerMenuIcon } from "@radix-ui/react-icons";
+import { LogOutIcon } from "lucide-react";
+import { signIn, signOut, useSession } from "next-auth/react";
+import Image from "next/image";
+import { useState } from "react";
+import { Button } from "./ui/button";
 import {
   Sheet,
   SheetContent,
@@ -9,8 +13,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "./ui/sheet";
-import { signIn, signOut, useSession } from "next-auth/react";
-import { useState } from "react";
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -80,17 +82,32 @@ export default function HeaderMenu() {
           ) : session ? (
             <>
               <div className="flex flex-col items-start gap-1 rounded-lg border p-4">
-                <p className="text-sm text-muted-foreground">Signed in as</p>
-                <p className="font-medium">{session.user?.email}</p>
+                <div className="flex w-full items-center gap-3">
+                  {session.user?.image && (
+                    <Image
+                      src={session.user.image}
+                      alt="Profile"
+                      className="h-10 w-10 rounded-full"
+                      width={40}
+                      height={40}
+                    />
+                  )}
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Signed in as
+                    </p>
+                    <p className="font-medium">{session.user?.name}</p>
+                  </div>
+                  <Button
+                    onClick={handleSignOut}
+                    variant="outline"
+                    disabled={isLoading}
+                    className="ml-auto"
+                  >
+                    <LogOutIcon className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <Button
-                onClick={handleSignOut}
-                variant="outline"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? "Signing out..." : "Sign out"}
-              </Button>
             </>
           ) : (
             <Button

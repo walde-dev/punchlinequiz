@@ -23,7 +23,7 @@ export default function OnboardingDialog() {
 
   // Open dialog when user signs in and doesn't have a name
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.name) {
+    if (status === "authenticated" && !session?.user?.name) {
       setOpen(true);
     }
   }, [status, session?.user?.name]);
