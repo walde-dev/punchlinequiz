@@ -13,6 +13,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useSession } from "next-auth/react";
+import { useToast } from "./ui/use-toast";
 
 export default function OnboardingDialog() {
   const { data: session, status, update } = useSession();
@@ -20,6 +21,7 @@ export default function OnboardingDialog() {
   const [username, setUsername] = useState(session?.user?.name ?? "");
   const [avatarUrl, setAvatarUrl] = useState(session?.user?.image ?? "");
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   // Open dialog when user signs in and doesn't have a name
   useEffect(() => {
@@ -45,11 +47,21 @@ export default function OnboardingDialog() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update profile");
+        const errorText = await response.text();
+        toast({
+          variant: "destructive",
+          title: "Fehler",
+          description: errorText,
+        });
+        throw new Error(errorText);
       }
 
       await update({ name: username, image: avatarUrl });
       setOpen(false);
+      toast({
+        title: "Erfolgreich gespeichert",
+        description: "Dein Profil wurde aktualisiert.",
+      });
     } catch (error) {
       console.error("Failed to update profile:", error);
     } finally {
@@ -112,11 +124,36 @@ export default function OnboardingDialog() {
             <Input
               id="username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Only allow alphanumeric characters, underscores, and dots
+                if (/^[a-zA-Z0-9._]*$/.test(value)) {
+                  setUsername(value);
+                }
+              }}
               placeholder="Gib deinen Benutzernamen ein"
               disabled={isLoading}
               required
+              maxLength={16}
+              pattern="^[a-zA-Z0-9._]+$"
+              title="Nur Buchstaben, Zahlen, Unterstriche und Punkte sind erlaubt"
             />
+            <p className="text-sm text-muted-foreground">
+              Max. 16 Zeichen, erlaubt sind Buchstaben, Zahlen, Punkte und
+              Unterstriche.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">E-Mail</Label>
+            <Input
+              id="email"
+              value={session?.user?.email ?? ""}
+              disabled
+              className="bg-muted"
+            />
+            <p className="text-sm text-muted-foreground">
+              Deine E-Mail-Adresse von Google
+            </p>
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Wird gespeichert..." : "Profil speichern"}

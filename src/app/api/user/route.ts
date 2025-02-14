@@ -9,6 +9,9 @@ type UpdateUserBody = {
   image?: string;
 };
 
+const USERNAME_REGEX = /^[a-zA-Z0-9._]+$/;
+const MAX_USERNAME_LENGTH = 16;
+
 export async function PATCH(req: Request) {
   try {
     const session = await auth();
@@ -22,6 +25,19 @@ export async function PATCH(req: Request) {
 
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
+    }
+
+    // Validate username length
+    if (name.length > MAX_USERNAME_LENGTH) {
+      return new NextResponse("Username must be 16 characters or less", { status: 400 });
+    }
+
+    // Validate username characters
+    if (!USERNAME_REGEX.test(name)) {
+      return new NextResponse(
+        "Username can only contain letters, numbers, dots, and underscores",
+        { status: 400 }
+      );
     }
 
     const updateData = {
