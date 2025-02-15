@@ -16,6 +16,114 @@ import { type AdapterAccount } from "next-auth/adapters";
  */
 export const createTable = sqliteTableCreator((name) => `punchlinequiz_${name}`);
 
+export const artists = createTable(
+  "artist",
+  {
+    id: text("id").primaryKey(), // Spotify ID
+    name: text("name").notNull(),
+    image: text("image"),
+    spotifyUrl: text("spotify_url"),
+    createdAt: int("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  },
+  (artist) => ({
+    nameIdx: index("artist_name_idx").on(artist.name),
+  })
+);
+
+export const albums = createTable(
+  "album",
+  {
+    id: text("id").primaryKey(), // Spotify ID
+    name: text("name").notNull(),
+    image: text("image"),
+    releaseDate: text("release_date"),
+    spotifyUrl: text("spotify_url"),
+    artistId: text("artist_id")
+      .notNull()
+      .references(() => artists.id),
+    createdAt: int("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  },
+  (album) => ({
+    nameIdx: index("album_name_idx").on(album.name),
+    artistIdx: index("album_artist_idx").on(album.artistId),
+  })
+);
+
+export const songs = createTable(
+  "song",
+  {
+    id: text("id").primaryKey(), // Spotify ID
+    name: text("name").notNull(),
+    spotifyUrl: text("spotify_url"),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id),
+    artistId: text("artist_id")
+      .notNull()
+      .references(() => artists.id),
+    createdAt: int("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  },
+  (song) => ({
+    nameIdx: index("song_name_idx").on(song.name),
+    albumIdx: index("song_album_idx").on(song.albumId),
+    artistIdx: index("song_artist_idx").on(song.artistId),
+  })
+);
+
+export const punchlines = createTable(
+  "punchline",
+  {
+    id: int("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+    line: text("line").notNull(),
+    perfectSolution: text("perfect_solution").notNull(),
+    acceptableSolutions: text("acceptable_solutions").notNull(), // Stored as JSON array
+    songId: text("song_id")
+      .notNull()
+      .references(() => songs.id),
+    createdById: text("created_by", { length: 255 })
+      .notNull()
+      .references(() => users.id),
+    createdAt: int("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    updatedAt: int("updatedAt", { mode: "timestamp" }).$onUpdate(
+      () => new Date()
+    ),
+  },
+  (punchline) => ({
+    createdByIdIdx: index("punchline_created_by_idx").on(punchline.createdById),
+    songIdx: index("punchline_song_idx").on(punchline.songId),
+  })
+);
+
+// Relations
+export const artistsRelations = relations(artists, ({ many }) => ({
+  albums: many(albums),
+  songs: many(songs),
+}));
+
+export const albumsRelations = relations(albums, ({ one, many }) => ({
+  artist: one(artists, { fields: [albums.artistId], references: [artists.id] }),
+  songs: many(songs),
+}));
+
+export const songsRelations = relations(songs, ({ one, many }) => ({
+  album: one(albums, { fields: [songs.albumId], references: [albums.id] }),
+  artist: one(artists, { fields: [songs.artistId], references: [artists.id] }),
+  punchlines: many(punchlines),
+}));
+
+export const punchlinesRelations = relations(punchlines, ({ one }) => ({
+  song: one(songs, { fields: [punchlines.songId], references: [songs.id] }),
+  createdBy: one(users, { fields: [punchlines.createdById], references: [users.id] }),
+}));
+
 export const posts = createTable(
   "post",
   {
@@ -52,6 +160,7 @@ export const users = createTable("user", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
+  punchlines: many(punchlines),
 }));
 
 export const accounts = createTable(
