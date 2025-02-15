@@ -3,7 +3,7 @@
 import { auth } from "auth";
 import { db } from "~/server/db";
 import { albums, artists, songs } from "~/server/db/schema";
-import { getAlbum, getArtist, searchTrack } from "~/server/spotify";
+import { getAlbum, getArtist, getTrack, searchTrack } from "~/server/spotify";
 import { eq } from "drizzle-orm";
 
 export async function searchSongs(query: string) {
@@ -31,17 +31,16 @@ export async function importSong(songId: string) {
   }
 
   // Get track details
-  const track = await searchTrack(`spotify:track:${songId}`);
-  if (!track.length) throw new Error("Song not found");
-  const songData = track[0];
+  const songData = await getTrack(songId);
+  if (!songData) throw new Error("Song not found");
 
   // Get artist details
-  const artistId = songData?.artists[0]?.id;
+  const artistId = songData.artists[0]?.id;
   if (!artistId) throw new Error("Artist not found");
   const artistData = await getArtist(artistId);
 
   // Get album details
-  const albumId = songData?.album.id;
+  const albumId = songData.album.id;
   if (!albumId) throw new Error("Album not found");
   const albumData = await getAlbum(albumId);
 

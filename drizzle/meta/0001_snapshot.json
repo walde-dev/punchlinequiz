@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9872abea-cb1c-499a-ad46-405b3a6ef457",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "c6f60306-3236-403e-995d-956a17a6e6c2",
+  "prevId": "9872abea-cb1c-499a-ad46-405b3a6ef457",
   "tables": {
     "punchlinequiz_account": {
       "name": "punchlinequiz_account",
@@ -296,8 +296,8 @@
           "autoincrement": false,
           "default": "(unixepoch())"
         },
-        "updatedAt": {
-          "name": "updatedAt",
+        "updated_at": {
+          "name": "updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -392,8 +392,8 @@
           "autoincrement": false,
           "default": "(unixepoch())"
         },
-        "updatedAt": {
-          "name": "updatedAt",
+        "updated_at": {
+          "name": "updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -649,6 +649,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": false
+        },
+        "onboarding_completed": {
+          "name": "onboarding_completed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         }
       },
       "indexes": {},
@@ -702,7 +710,10 @@
   "_meta": {
     "schemas": {},
     "tables": {},
-    "columns": {}
+    "columns": {
+      "\"punchlinequiz_post\".\"updatedAt\"": "\"punchlinequiz_post\".\"updated_at\"",
+      "\"punchlinequiz_punchline\".\"updatedAt\"": "\"punchlinequiz_punchline\".\"updated_at\""
+    }
   },
   "internal": {
     "indexes": {}

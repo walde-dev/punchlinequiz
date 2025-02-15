@@ -19,11 +19,8 @@ export function useCreatePunchline() {
 
   return useMutation({
     mutationFn: async (formData: FormData) => {
-      const result = await createPunchline(formData);
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      return result;
+      await createPunchline(formData);
+      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["punchlines"] });

@@ -5,8 +5,10 @@ import { env } from "~/env";
 export default {
   schema: "./src/server/db/schema.ts",
   dialect: "sqlite",
+  out: "./drizzle",
+  verbose: true,
+  strict: true,
   dbCredentials: {
-    url: env.DATABASE_URL,
+    url: env.DATABASE_URL.replace("file:", ""),
   },
-  tablesFilter: ["punchlinequiz_*"],
 } satisfies Config;

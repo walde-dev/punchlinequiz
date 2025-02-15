@@ -5,8 +5,8 @@ import { type Metadata } from "next";
 import { Providers } from "./providers";
 import { Toaster } from "~/components/ui/toaster";
 import Header from "~/components/header/header";
-import OnboardingDialog from "~/components/onboarding-dialog";
 import Footer from "~/components/footer/footer";
+import OnboardingDialog from "~/components/onboarding-dialog";
 
 export const metadata: Metadata = {
   title: "punchline/quiz",
@@ -23,7 +23,7 @@ export default function RootLayout({
         <Providers>
           <main className="flex min-h-screen flex-col items-center px-6 py-12">
             <Header />
-            <div className="flex-1 w-full">
+            <div className="w-full flex-1">
               {children}
               <OnboardingDialog />
             </div>

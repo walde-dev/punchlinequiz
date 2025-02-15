@@ -23,7 +23,11 @@ export async function searchTrack(query: string) {
   console.log("searchTrack called with query:", query); // Debug log
   await ensureAccessToken();
   const result = await spotifyApi.searchTracks(query);
-  console.log("Spotify API response:", result.body.tracks?.items?.length, "items"); // Debug log
+  console.log(
+    "Spotify API response:",
+    result.body.tracks?.items?.length,
+    "items",
+  ); // Debug log
   return result.body.tracks?.items ?? [];
 }
 
@@ -43,4 +47,4 @@ export async function getAlbum(id: string) {
   await ensureAccessToken();
   const result = await spotifyApi.getAlbum(id);
   return result.body;
-} 
+}

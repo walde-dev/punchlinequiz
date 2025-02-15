@@ -35,22 +35,39 @@ interface SongSearchProps {
 export function SongSearch({ onSelect }: SongSearchProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
+  const [selectedSong, setSelectedSong] = React.useState<Song | null>(null);
   const debouncedQuery = useDebounce(query, 300);
 
-  const { data, isLoading, isError } = useSpotifySearch(debouncedQuery);
-  const songs = Array.isArray(data) ? data : [];
+  const {
+    data: songs = [],
+    isFetching,
+    isError,
+  } = useSpotifySearch(debouncedQuery);
+
   const importMutation = useImportSong();
 
   const handleSelect = async (songId: string) => {
+    const selectedSong = songs.find(song => song.id === songId);
+    if (!selectedSong) return;
+
+    setSelectedSong(selectedSong);
+    setOpen(false);
+    setQuery("");
+
     try {
-      const song = await importMutation.mutateAsync(songId);
-      if (song) {
-        onSelect(song);
-        setOpen(false);
-        setQuery("");
-      }
+      const importedSong = await importMutation.mutateAsync(songId);
+      onSelect(importedSong);
     } catch (error) {
       console.error("Failed to import song:", error);
+      setOpen(true); // Reopen on error
+      setSelectedSong(null);
+    }
+  };
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (!open && value) {
+      setOpen(true);
     }
   };
 
@@ -61,26 +78,54 @@ export function SongSearch({ onSelect }: SongSearchProps) {
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          disabled={importMutation.isPending}
           className="w-full justify-between"
         >
-          {"Song suchen..."}
+          <div className="flex items-center gap-3 truncate">
+            {importMutation.isPending ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Importiere Song...</span>
+              </div>
+            ) : selectedSong ? (
+              <>
+                {selectedSong.image && (
+                  <img
+                    src={selectedSong.image}
+                    alt={selectedSong.name}
+                    className="h-8 w-8 rounded-sm object-cover"
+                  />
+                )}
+                <div className="flex flex-col items-start truncate">
+                  <span className="font-medium truncate">{selectedSong.name}</span>
+                  <span className="text-sm text-muted-foreground truncate">
+                    {selectedSong.artist} • {selectedSong.album}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <span>Song suchen...</span>
+            )}
+          </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0">
+      <PopoverContent className="w-[400px] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Song suchen..."
             value={query}
-            onValueChange={setQuery}
+            onValueChange={handleQueryChange}
           />
-          <CommandList>
-            {isLoading ? (
+          <CommandList className="max-h-[300px] overflow-y-auto">
+            {isFetching ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             ) : isError ? (
               <CommandEmpty>Fehler beim Suchen</CommandEmpty>
+            ) : query.length > 0 && query.length <= 3 ? (
+              <CommandEmpty>Bitte gib mindestens 3 Zeichen ein...</CommandEmpty>
             ) : songs.length === 0 ? (
               <CommandEmpty>Keine Songs gefunden</CommandEmpty>
             ) : (

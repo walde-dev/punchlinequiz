@@ -12,6 +12,23 @@ type UpdateUserBody = {
 const USERNAME_REGEX = /^[a-zA-Z0-9._]+$/;
 const MAX_USERNAME_LENGTH = 16;
 
+export async function GET() {
+  const session = await auth();
+  if (!session?.user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  const user = await db
+    .select({
+      onboardingCompleted: users.onboardingCompleted,
+    })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .get();
+
+  return NextResponse.json(user);
+}
+
 export async function PATCH(req: Request) {
   try {
     const session = await auth();
@@ -59,4 +76,20 @@ export async function PATCH(req: Request) {
     }
     return new NextResponse("Internal Error", { status: 500 });
   }
+}
+
+export async function PATCH_onboarding(request: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  const { onboardingCompleted } = await request.json();
+
+  await db
+    .update(users)
+    .set({ onboardingCompleted })
+    .where(eq(users.id, session.user.id));
+
+  return NextResponse.json({ success: true });
 }

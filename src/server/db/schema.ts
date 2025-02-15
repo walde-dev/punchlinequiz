@@ -92,9 +92,7 @@ export const punchlines = createTable(
     createdAt: int("created_at", { mode: "timestamp" })
       .default(sql`(unixepoch())`)
       .notNull(),
-    updatedAt: int("updatedAt", { mode: "timestamp" }).$onUpdate(
-      () => new Date()
-    ),
+    updatedAt: int("updated_at", { mode: "timestamp" }),
   },
   (punchline) => ({
     createdByIdIdx: index("punchline_created_by_idx").on(punchline.createdById),
@@ -135,9 +133,7 @@ export const posts = createTable(
     createdAt: int("created_at", { mode: "timestamp" })
       .default(sql`(unixepoch())`)
       .notNull(),
-    updatedAt: int("updatedAt", { mode: "timestamp" }).$onUpdate(
-      () => new Date()
-    ),
+    updatedAt: int("updated_at", { mode: "timestamp" }),
   },
   (example) => ({
     createdByIdIdx: index("created_by_idx").on(example.createdById),
@@ -156,6 +152,8 @@ export const users = createTable("user", {
     mode: "timestamp",
   }).default(sql`(unixepoch())`),
   image: text("image", { length: 255 }),
+  isAdmin: int("is_admin", { mode: "boolean" }).default(false).notNull(),
+  onboardingCompleted: int("onboarding_completed", { mode: "boolean" }).default(false).notNull(),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -183,9 +181,7 @@ export const accounts = createTable(
     session_state: text("session_state", { length: 255 }),
   },
   (account) => ({
-    compoundKey: primaryKey({
-      columns: [account.provider, account.providerAccountId],
-    }),
+    compoundKey: primaryKey(account.provider, account.providerAccountId),
     userIdIdx: index("account_user_id_idx").on(account.userId),
   })
 );
@@ -220,6 +216,6 @@ export const verificationTokens = createTable(
     expires: int("expires", { mode: "timestamp" }).notNull(),
   },
   (vt) => ({
-    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
+    compoundKey: primaryKey(vt.identifier, vt.token),
   })
 );

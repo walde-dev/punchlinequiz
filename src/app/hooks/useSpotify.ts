@@ -2,25 +2,30 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { importSong, searchSongs } from "../actions/spotify";
 
 export function useSpotifySearch(query: string) {
+  const isEnabled = typeof query === 'string' && query.length >= 3;
+  
   return useQuery({
-    queryKey: ["spotify-search", query] as const,
-    queryFn: async () => {
-      if (!query || query.length < 3) return [];
+    queryKey: ["spotify-search", query],
+    queryFn: async ({ queryKey }) => {
+      const [_, searchQuery] = queryKey as [string, string];
       
-      console.log("Searching for:", query); // Debug log
-      try {
-        const results = await searchSongs(query);
-        console.log("Search results:", results); // Debug log
-        return results ? (Array.isArray(results) ? results : []) : [];
-      } catch (error) {
-        console.error("Search error:", error);
+      if (!searchQuery || searchQuery.length < 3) {
         return [];
       }
+
+      try {
+        const results = await searchSongs(searchQuery);
+        return results ?? [];
+      } catch (error) {
+        throw error;
+      }
     },
-    enabled: query.length > 2,
+    enabled: isEnabled,
     initialData: [],
-    staleTime: 1000 * 60 * 5, // Cache results for 5 minutes
+    gcTime: 0,
+    staleTime: 0,
     refetchOnWindowFocus: false,
+    retry: false,
   });
 }
 
