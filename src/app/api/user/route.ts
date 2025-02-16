@@ -1,3 +1,5 @@
+"use server";
+
 import { auth } from "auth";
 import { db } from "~/server/db";
 import { users } from "~/server/db/schema";
@@ -15,19 +17,22 @@ const MAX_USERNAME_LENGTH = 16;
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user) {
-    return new NextResponse("Unauthorized", { status: 401 });
+  if (!session?.user?.id) {
+    return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const user = await db
-    .select({
-      onboardingCompleted: users.onboardingCompleted,
-    })
-    .from(users)
-    .where(eq(users.id, session.user.id))
-    .get();
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+    columns: {
+      onboardingCompleted: true,
+    },
+  });
 
-  return NextResponse.json(user);
+  if (!user) {
+    return Response.json({ error: "User not found" }, { status: 404 });
+  }
+
+  return Response.json(user);
 }
 
 export async function PATCH(req: Request) {
@@ -56,14 +61,16 @@ export async function PATCH(req: Request) {
 
     // Validate username length
     if (name.length > MAX_USERNAME_LENGTH) {
-      return new NextResponse("Username must be 16 characters or less", { status: 400 });
+      return new NextResponse("Username must be 16 characters or less", {
+        status: 400,
+      });
     }
 
     // Validate username characters
     if (!USERNAME_REGEX.test(name)) {
       return new NextResponse(
         "Username can only contain letters, numbers, dots, and underscores",
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -86,4 +93,20 @@ export async function PATCH(req: Request) {
     }
     return new NextResponse("Internal Error", { status: 500 });
   }
+}
+
+export async function PUT(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return Response.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const body = await request.json();
+
+  await db
+    .update(users)
+    .set({ onboardingCompleted: true })
+    .where(eq(users.id, session.user.id));
+
+  return Response.json({ success: true });
 }

@@ -117,9 +117,15 @@ export const songsRelations = relations(songs, ({ one, many }) => ({
   punchlines: many(punchlines),
 }));
 
-export const punchlinesRelations = relations(punchlines, ({ one }) => ({
-  song: one(songs, { fields: [punchlines.songId], references: [songs.id] }),
-  createdBy: one(users, { fields: [punchlines.createdById], references: [users.id] }),
+export const punchlineRelations = relations(punchlines, ({ one }) => ({
+  song: one(songs, {
+    fields: [punchlines.songId],
+    references: [songs.id],
+  }),
+  createdBy: one(users, {
+    fields: [punchlines.createdById],
+    references: [users.id],
+  }),
 }));
 
 export const posts = createTable(

@@ -1,7 +1,8 @@
-import { db } from "~/server/db";
+"use server";
 import { punchlines } from "~/server/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { db } from "~/server/db";
 
 export async function getRandomPunchline() {
   try {
@@ -24,7 +25,9 @@ export async function getRandomPunchline() {
     }
 
     // Parse the acceptable solutions from JSON string
-    const acceptableSolutions = JSON.parse(result.acceptableSolutions) as string[];
+    const acceptableSolutions = JSON.parse(
+      result.acceptableSolutions,
+    ) as string[];
 
     return {
       ...result,
@@ -58,10 +61,12 @@ export async function validateGuess(formData: FormData) {
       throw new Error("Punchline not found");
     }
 
-    const acceptableSolutions = JSON.parse(punchline.acceptableSolutions) as string[];
+    const acceptableSolutions = JSON.parse(
+      punchline.acceptableSolutions,
+    ) as string[];
     const normalizedGuess = parsed.guess.toLowerCase().trim();
     const isCorrect = acceptableSolutions.some(
-      (solution) => solution.toLowerCase().trim() === normalizedGuess
+      (solution) => solution.toLowerCase().trim() === normalizedGuess,
     );
 
     return {
@@ -72,4 +77,4 @@ export async function validateGuess(formData: FormData) {
     console.error("Failed to validate guess:", error);
     throw new Error("Failed to validate guess");
   }
-} 
+}

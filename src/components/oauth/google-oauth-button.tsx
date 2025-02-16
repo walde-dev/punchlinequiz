@@ -39,7 +39,7 @@ export default function GoogleOAuthButton({
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
-      await signIn("google", { callbackUrl: "/" });
+      await signIn("google", { redirectTo: "/" });
     } catch (error) {
       console.error("Sign in error:", error);
     } finally {

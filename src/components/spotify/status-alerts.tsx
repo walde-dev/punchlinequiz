@@ -1,44 +1,36 @@
 "use client";
 
-import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 interface StatusAlertsProps {
-  success: string | null;
-  error: string | null;
+  searchParams: {
+    success?: string;
+    error?: string;
+  };
 }
 
-export function StatusAlerts({ 
-  success = null, 
-  error = null 
-}: StatusAlertsProps) {
-  // Early return if no alerts to show
+export function StatusAlerts({ searchParams }: StatusAlertsProps) {
+  const { success, error } = searchParams;
+
   if (!success && !error) return null;
 
-  if (success === "spotify-connected") {
-    return (
-      <Alert>
-        <CheckCircle2 className="h-4 w-4" />
-        <AlertTitle>Erfolgreich</AlertTitle>
-        <AlertDescription>
-          Dein Spotify-Account wurde erfolgreich verbunden.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (error === "spotify-auth-failed") {
-    return (
-      <Alert variant="destructive">
-        <XCircle className="h-4 w-4" />
-        <AlertTitle>Fehler</AlertTitle>
-        <AlertDescription>
-          Die Verbindung zu Spotify konnte nicht hergestellt werden. Bitte
-          versuche es erneut.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  return null;
+  return (
+    <div className="space-y-2">
+      {success === "spotify-connected" && (
+        <Alert variant="default" className="border-green-500">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <AlertDescription>Spotify wurde erfolgreich verbunden!</AlertDescription>
+        </Alert>
+      )}
+      {error === "spotify-auth-failed" && (
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
+          <AlertDescription>
+            Spotify konnte nicht verbunden werden. Bitte versuche es erneut.
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
+  );
 }

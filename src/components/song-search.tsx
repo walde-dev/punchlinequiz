@@ -39,15 +39,26 @@ export function SongSearch({ onSelect }: SongSearchProps) {
   const debouncedQuery = useDebounce(query, 300);
 
   const {
-    data: songs = [],
+    data: spotifyTracks = [],
     isFetching,
     isError,
   } = useSpotifySearch(debouncedQuery);
 
+  // Transform Spotify tracks to match our Song interface
+  const songs = React.useMemo(() => {
+    return spotifyTracks.map((track) => ({
+      id: track.id,
+      name: track.name,
+      artist: track.artists[0]?.name ?? "Unknown Artist",
+      album: track.album.name,
+      image: track.album.images[0]?.url,
+    }));
+  }, [spotifyTracks]);
+
   const importMutation = useImportSong();
 
   const handleSelect = async (songId: string) => {
-    const selectedSong = songs.find(song => song.id === songId);
+    const selectedSong = songs.find((song) => song.id === songId);
     if (!selectedSong) return;
 
     setSelectedSong(selectedSong);
@@ -100,8 +111,10 @@ export function SongSearch({ onSelect }: SongSearchProps) {
                   </div>
                 )}
                 <div className="flex flex-col items-start truncate">
-                  <span className="font-medium truncate">{selectedSong.name}</span>
-                  <span className="text-sm text-muted-foreground truncate">
+                  <span className="truncate font-medium">
+                    {selectedSong.name}
+                  </span>
+                  <span className="truncate text-sm text-muted-foreground">
                     {selectedSong.artist} • {selectedSong.album}
                   </span>
                 </div>

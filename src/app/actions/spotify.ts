@@ -2,45 +2,36 @@
 
 import { auth } from "auth";
 import { db } from "~/server/db";
-import { albums, artists, songs } from "~/server/db/schema";
+import { albums, artists, songs, accounts } from "~/server/db/schema";
 import { getAlbum, getArtist, getTrack, searchTrack } from "~/server/spotify";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+
+export async function hasSpotifyAccount(userId: string) {
+  const account = await db.query.accounts.findFirst({
+    where: and(eq(accounts.userId, userId), eq(accounts.provider, "spotify")),
+  });
+  return !!account;
+}
 
 export async function searchSongs(query: string) {
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error("Not authenticated");
-  }
-
   const tracks = await searchTrack(query);
-  return tracks.map((track) => ({
-    id: track.id,
-    name: track.name,
-    artist: track.artists[0]?.name ?? "Unknown Artist",
-    artistId: track.artists[0]?.id,
-    album: track.album.name,
-    albumId: track.album.id,
-    image: track.album.images[0]?.url,
-  }));
+  return tracks;
 }
 
 export async function importSong(songId: string) {
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error("Not authenticated");
+  const track = await getTrack(songId);
+
+  if (!track) {
+    throw new Error("Track not found");
   }
 
-  // Get track details
-  const songData = await getTrack(songId);
-  if (!songData) throw new Error("Song not found");
-
   // Get artist details
-  const artistId = songData.artists[0]?.id;
+  const artistId = track.artists[0]?.id;
   if (!artistId) throw new Error("Artist not found");
   const artistData = await getArtist(artistId);
 
   // Get album details
-  const albumId = songData.album.id;
+  const albumId = track.album.id;
   if (!albumId) throw new Error("Album not found");
   const albumData = await getAlbum(albumId);
 
@@ -82,8 +73,8 @@ export async function importSong(songId: string) {
   if (!existingSong) {
     await db.insert(songs).values({
       id: songId,
-      name: songData.name,
-      spotifyUrl: songData.external_urls.spotify,
+      name: track.name,
+      spotifyUrl: track.external_urls.spotify,
       albumId,
       artistId,
     });
@@ -91,9 +82,15 @@ export async function importSong(songId: string) {
 
   return {
     id: songId,
-    name: songData.name,
+    name: track.name,
     artist: artistData.name,
     album: albumData.name,
     image: albumData.images[0]?.url,
   };
+}
+
+export async function getSpotifyAccount(userId: string) {
+  return db.query.accounts.findFirst({
+    where: and(eq(accounts.userId, userId), eq(accounts.provider, "spotify")),
+  });
 }

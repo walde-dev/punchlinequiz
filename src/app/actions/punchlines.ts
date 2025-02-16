@@ -2,15 +2,10 @@
 
 import { auth } from "auth";
 import { z } from "zod";
-import { db } from "~/server/db";
-import {
-  punchlines,
-  type songs,
-  type artists,
-  type albums,
-} from "~/server/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
+import { songs, punchlines, albums, artists } from "~/server/db/schema";
 import { requireAdmin } from "~/server/auth";
+import { db } from "~/server/db";
 
 const createPunchlineSchema = z.object({
   line: z.string().min(1, "Punchline ist erforderlich"),

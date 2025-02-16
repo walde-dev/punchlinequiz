@@ -11,7 +11,7 @@ export function useRandomPunchline() {
     queryKey: ["randomPunchline"] as const,
     queryFn: async () => {
       const punchline = await getRandomPunchline();
-      if (!punchline) {
+      if (!punchline) { 
         throw new Error("Failed to fetch random punchline");
       }
       return punchline as RandomPunchline;

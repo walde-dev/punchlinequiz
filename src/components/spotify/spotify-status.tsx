@@ -1,8 +1,9 @@
+"use client";
+
 import { SpotifyConnectButton } from "./spotify-connect-button";
-import { db } from "~/server/db";
-import { accounts } from "~/server/db/schema";
-import { and, eq } from "drizzle-orm";
 import { StatusAlerts } from "./status-alerts";
+import { hasSpotifyAccount } from "~/app/actions/spotify";
+import { useEffect, useState } from "react";
 
 interface SearchParams {
   success?: string;
@@ -11,25 +12,23 @@ interface SearchParams {
 
 interface SpotifyStatusProps {
   userId: string;
-  searchParams?: SearchParams;
+  searchParams: SearchParams;
 }
 
-export async function SpotifyStatus({
+export function SpotifyStatus({
   userId,
-  searchParams = {},
+  searchParams,
 }: SpotifyStatusProps) {
-  const spotifyAccount = await db.query.accounts.findFirst({
-    where: and(eq(accounts.userId, userId), eq(accounts.provider, "spotify")),
-  });
+  const [hasAccount, setHasAccount] = useState(false);
 
-  // Extract only the string values we need, with defensive checks
-  const success = searchParams?.success ?? null;
-  const error = searchParams?.error ?? null;
+  useEffect(() => {
+    hasSpotifyAccount(userId).then(setHasAccount);
+  }, [userId]);
 
   return (
-    <div className="space-y-4">
-      <StatusAlerts success={success} error={error} />
-      {!spotifyAccount && <SpotifyConnectButton />}
+    <div className="flex items-center gap-2">
+      {!hasAccount && <SpotifyConnectButton />}
+      <StatusAlerts searchParams={searchParams} />
     </div>
   );
 }

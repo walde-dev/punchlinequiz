@@ -22,7 +22,7 @@ export default function RootLayout({
     <html lang="en" className={`${GeistSans.variable}`}>
       <body>
         <Providers>
-          <main className="flex min-h-screen flex-col items-center px-6 py-12">
+          <main className="flex min-h-screen flex-col items-center px-6 py-6">
             <Header />
             <div className="w-full flex-1">
               {children}
