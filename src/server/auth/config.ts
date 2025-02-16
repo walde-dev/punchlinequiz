@@ -1,5 +1,5 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { type User, type DefaultSession } from "next-auth";
+import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
 import { db } from "~/server/db";
@@ -21,15 +21,11 @@ declare module "next-auth" {
     user: {
       id: string;
       isAdmin: boolean;
-      // ...other properties
-      // role: UserRole;
     } & DefaultSession["user"];
   }
 
   interface User {
     isAdmin: boolean;
-    // ...other properties
-    // role: UserRole;
   }
 }
 
@@ -54,20 +50,19 @@ export const authConfig = {
      * @see https://next-auth.js.org/providers/github
      */
   ],
+  // @ts-expect-error Adapter type mismatch between versions
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
-  }) as any,
+  }),
   callbacks: {
-    session: ({ session, user }: { session: DefaultSession; user: User }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-        isAdmin: user.isAdmin,
-      },
-    }),
+    session: ({ session, user }) => {
+      if (!session?.user) return session;
+      session.user.id = user.id;
+      session.user.isAdmin = user.isAdmin ?? false;
+      return session;
+    },
   },
-};
+} satisfies NextAuthConfig;
