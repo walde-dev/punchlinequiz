@@ -7,6 +7,7 @@ import { Toaster } from "~/components/ui/toaster";
 import Header from "~/components/header/header";
 import Footer from "~/components/footer/footer";
 import OnboardingDialog from "~/components/onboarding-dialog";
+import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
   title: "punchline/quiz",
@@ -30,6 +31,7 @@ export default function RootLayout({
             <Footer />
             <Toaster />
           </main>
+          <Analytics />
         </Providers>
       </body>
     </html>
