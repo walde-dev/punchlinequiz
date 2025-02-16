@@ -29,7 +29,7 @@ export function Toaster() {
           </Toast>
         )
       })}
-      <ToastViewport />
+      <ToastViewport className="fixed bottom-0 left-1/2 z-[100] flex max-h-screen w-full -translate-x-1/2 flex-col-reverse gap-2 p-4 md:left-auto md:right-0 md:translate-x-0 md:max-w-[420px]" />
     </ToastProvider>
   )
 }
