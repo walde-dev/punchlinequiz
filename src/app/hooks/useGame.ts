@@ -27,9 +27,11 @@ export function useValidateGuess() {
       const result = await validateGuess(formData);
       return result;
     },
-    onSuccess: () => {
-      // If the guess was correct, we'll want to fetch a new punchline
-      queryClient.invalidateQueries({ queryKey: ["randomPunchline"] });
+    onSuccess: (data) => {
+      // Only invalidate if the guess was correct
+      if (data.isCorrect) {
+        queryClient.invalidateQueries({ queryKey: ["randomPunchline"] });
+      }
     },
   });
 } 
