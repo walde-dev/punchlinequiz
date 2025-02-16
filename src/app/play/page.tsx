@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRandomPunchline, useValidateGuess } from "../hooks/useGame";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -22,6 +22,24 @@ import AuthDialog from "~/components/auth/auth-dialog";
 const MAX_FREE_PLAYS = 3;
 const PLAYS_RESET_HOURS = 24;
 
+type GuessResult = {
+  isCorrect: boolean;
+  punchline?: {
+    line: string;
+    perfectSolution: string;
+    song: {
+      name: string;
+      artist: {
+        name: string;
+      };
+      album: {
+        name: string;
+        image: string | null;
+      };
+    };
+  };
+};
+
 export default function PlayPage() {
   const formRef = useRef<HTMLFormElement>(null);
   const { data: punchline, isLoading, isError } = useRandomPunchline();
@@ -29,58 +47,49 @@ export default function PlayPage() {
   const { toast } = useToast();
   const { data: session } = useSession();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [lastGuess, setLastGuess] = useState<{
-    isCorrect: boolean;
-    perfectSolution?: string;
-  } | null>(null);
+  const [lastGuess, setLastGuess] = useState<GuessResult | null>(null);
+  const [playCount, setPlayCount] = useState(0);
 
-  // Get and validate play count from localStorage
-  const getPlayCount = () => {
-    const stored = localStorage.getItem("punchlineQuizPlays");
-    if (!stored) return 0;
+  // Initialize play count from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('punchlineQuizPlays');
+    if (!stored) return;
 
     try {
       const data = JSON.parse(stored);
       const now = new Date();
       const lastPlay = new Date(data.timestamp);
-
+      
       // Reset if last play was more than PLAYS_RESET_HOURS hours ago
-      if (
-        now.getTime() - lastPlay.getTime() >
-        PLAYS_RESET_HOURS * 60 * 60 * 1000
-      ) {
-        localStorage.removeItem("punchlineQuizPlays");
-        return 0;
+      if ((now.getTime() - lastPlay.getTime()) > (PLAYS_RESET_HOURS * 60 * 60 * 1000)) {
+        localStorage.removeItem('punchlineQuizPlays');
+        setPlayCount(0);
+      } else {
+        setPlayCount(data.count);
       }
-
-      return data.count;
     } catch {
-      return 0;
+      setPlayCount(0);
     }
-  };
+  }, []);
 
-  // Increment play count
-  const incrementPlayCount = () => {
-    const count = getPlayCount() + 1;
-    localStorage.setItem(
-      "punchlineQuizPlays",
-      JSON.stringify({
-        count,
-        timestamp: new Date().toISOString(),
-      }),
-    );
-    return count;
-  };
+  // Save play count to localStorage whenever it changes
+  useEffect(() => {
+    if (playCount > 0) {
+      localStorage.setItem('punchlineQuizPlays', JSON.stringify({
+        count: playCount,
+        timestamp: new Date().toISOString()
+      }));
+    }
+  }, [playCount]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     // Check if user has exceeded free plays
-    if (!session && getPlayCount() >= MAX_FREE_PLAYS) {
+    if (!session && playCount >= MAX_FREE_PLAYS) {
       toast({
         title: "Spiel limitiert",
-        description:
-          "Erstelle einen Account oder melde dich an, um weiterzuspielen!",
+        description: "Erstelle einen Account oder melde dich an, um weiterzuspielen!",
         variant: "destructive",
       });
       setShowAuthDialog(true);
@@ -92,23 +101,23 @@ export default function PlayPage() {
     try {
       const result = await mutation.mutateAsync(formData);
       setLastGuess(result);
-
+      
       if (result.isCorrect) {
         // Increment play count only on correct guesses
         if (!session) {
-          const plays = incrementPlayCount();
-          if (plays === MAX_FREE_PLAYS) {
+          const newCount = playCount + 1;
+          setPlayCount(newCount);
+          if (newCount === MAX_FREE_PLAYS) {
             toast({
               title: "Letzte kostenlose Runde!",
-              description:
-                "Erstelle einen Account oder melde dich an, um weiterzuspielen.",
+              description: "Erstelle einen Account oder melde dich an, um weiterzuspielen.",
             });
           }
         }
 
         toast({
           title: "Richtig!",
-          description: `Die perfekte Lösung war: "${result.perfectSolution}"`,
+          description: `Die perfekte Lösung war: "${result.punchline?.perfectSolution}"`,
         });
         formRef.current?.reset();
       } else {
@@ -122,16 +131,13 @@ export default function PlayPage() {
       toast({
         variant: "destructive",
         title: "Fehler",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+        description: error instanceof Error ? error.message : "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
       });
     }
   }
 
   // Show auth prompt if user has exceeded free plays
-  if (!session && getPlayCount() >= MAX_FREE_PLAYS) {
+  if (!session && playCount >= MAX_FREE_PLAYS) {
     return (
       <div className="container flex items-center justify-center">
         <div className="w-full max-w-md">
@@ -203,18 +209,12 @@ export default function PlayPage() {
                   <div className="space-y-2">
                     <h3 className="font-semibold">Punchline:</h3>
                     <p className="text-lg">
-                      {punchline.line
-                        .replace(
-                          /\{([^}]+)\}/,
-                          lastGuess?.isCorrect ? "$1" : "...",
-                        )
-                        .replace(
-                          /\[([^\]]+)\]/,
-                          lastGuess?.isCorrect ? "$1" : "...",
-                        )}
+                      {lastGuess?.isCorrect && lastGuess.punchline
+                        ? lastGuess.punchline.line
+                        : punchline?.line}
                     </p>
                   </div>
-                  {lastGuess?.isCorrect && (
+                  {lastGuess?.isCorrect && lastGuess.punchline && (
                     <>
                       <Alert>
                         <CheckCircle2 className="h-4 w-4" />
@@ -222,7 +222,7 @@ export default function PlayPage() {
                         <AlertDescription className="space-y-2">
                           <p>
                             Die perfekte Lösung war: &quot;
-                            {lastGuess.perfectSolution}&quot;
+                            {lastGuess.punchline.perfectSolution}&quot;
                           </p>
                           <Button
                             variant="outline"
@@ -238,22 +238,22 @@ export default function PlayPage() {
                       <div className="space-y-2">
                         <h3 className="font-semibold">Song:</h3>
                         <div className="flex items-start gap-4">
-                          {punchline.song.album.image && (
+                          {lastGuess.punchline.song.album.image && (
                             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md">
                               <img
-                                src={punchline.song.album.image}
-                                alt={`${punchline.song.album.name} Cover`}
+                                src={lastGuess.punchline.song.album.image}
+                                alt={`${lastGuess.punchline.song.album.name} Cover`}
                                 className="object-cover"
                               />
                             </div>
                           )}
                           <div>
                             <p>
-                              {punchline.song.name} -{" "}
-                              {punchline.song.artist.name}
+                              {lastGuess.punchline.song.name} -{" "}
+                              {lastGuess.punchline.song.artist.name}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              Album: {punchline.song.album.name}
+                              Album: {lastGuess.punchline.song.album.name}
                             </p>
                           </div>
                         </div>

@@ -4,9 +4,47 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "~/server/db";
 
+type SafePunchline = Omit<typeof punchlines.$inferSelect, 'perfectSolution' | 'acceptableSolutions'> & {
+  line: string;
+  song: {
+    id: string;
+    name: string;
+    artist: {
+      id: string;
+      name: string;
+    };
+    album: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+  };
+};
+
+type FullPunchline = typeof punchlines.$inferSelect & {
+  song: {
+    id: string;
+    name: string;
+    artist: {
+      id: string;
+      name: string;
+    };
+    album: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+  };
+};
+
+function hideSolution(line: string): string {
+  return line
+    .replace(/\{([^}]+)\}/, "...")
+    .replace(/\[([^\]]+)\]/, "...");
+}
+
 export async function getRandomPunchline() {
   try {
-    // Get a random punchline with its related song and artist information
     const result = await db.query.punchlines.findFirst({
       with: {
         song: {
@@ -16,7 +54,6 @@ export async function getRandomPunchline() {
           },
         },
       },
-      // Random order
       orderBy: sql`RANDOM()`,
     });
 
@@ -24,20 +61,58 @@ export async function getRandomPunchline() {
       throw new Error("No punchlines found");
     }
 
-    // Parse the acceptable solutions from JSON string
-    const acceptableSolutions = JSON.parse(
-      result.acceptableSolutions,
-    ) as string[];
-
-    return {
-      ...result,
-      acceptableSolutions,
-      // Don't send the perfect solution to the client
-      perfectSolution: undefined,
+    // Return a safe version without solutions
+    const safePunchline: SafePunchline = {
+      id: result.id,
+      line: hideSolution(result.line),
+      songId: result.songId,
+      createdById: result.createdById,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+      song: {
+        id: result.song.id,
+        name: result.song.name,
+        artist: {
+          id: result.song.artist.id,
+          name: result.song.artist.name,
+        },
+        album: {
+          id: result.song.album.id,
+          name: result.song.album.name,
+          image: result.song.album.image,
+        },
+      },
     };
+
+    return safePunchline;
   } catch (error) {
     console.error("Failed to fetch random punchline:", error);
     throw new Error("Failed to fetch random punchline");
+  }
+}
+
+export async function getFullPunchlineAfterCorrectGuess(punchlineId: number) {
+  try {
+    const result = await db.query.punchlines.findFirst({
+      where: eq(punchlines.id, punchlineId),
+      with: {
+        song: {
+          with: {
+            artist: true,
+            album: true,
+          },
+        },
+      },
+    });
+
+    if (!result) {
+      throw new Error("Punchline not found");
+    }
+
+    return result as FullPunchline;
+  } catch (error) {
+    console.error("Failed to fetch full punchline:", error);
+    throw new Error("Failed to fetch full punchline");
   }
 }
 
@@ -55,6 +130,14 @@ export async function validateGuess(formData: FormData) {
   try {
     const punchline = await db.query.punchlines.findFirst({
       where: eq(punchlines.id, parsed.punchlineId),
+      with: {
+        song: {
+          with: {
+            artist: true,
+            album: true,
+          },
+        },
+      },
     });
 
     if (!punchline) {
@@ -69,9 +152,17 @@ export async function validateGuess(formData: FormData) {
       (solution) => solution.toLowerCase().trim() === normalizedGuess,
     );
 
+    if (isCorrect) {
+      // If correct, return the full punchline data
+      return {
+        isCorrect: true,
+        punchline: punchline as FullPunchline,
+      };
+    }
+
+    // If incorrect, only return the status
     return {
-      isCorrect,
-      perfectSolution: isCorrect ? punchline.perfectSolution : undefined,
+      isCorrect: false,
     };
   } catch (error) {
     console.error("Failed to validate guess:", error);
