@@ -59,7 +59,7 @@ export const authConfig = {
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
-  }),
+  }) as any,
   callbacks: {
     session: ({ session, user }: { session: DefaultSession; user: User }) => ({
       ...session,
