@@ -312,7 +312,7 @@ export default function PlayPage() {
                   {lastGuess?.isCorrect && lastGuess.punchline && (
                     <div
                       ref={albumRef}
-                      className="h-fit space-y-2 rounded-lg border p-4 duration-500 animate-in slide-in-from-right"
+                      className="h-fit space-y-2 rounded-lg border p-4 duration-500 animate-in md:slide-in-from-right slide-in-from-bottom"
                     >
                       <h3 className="font-semibold">Song:</h3>
                       <div className="space-y-4">
