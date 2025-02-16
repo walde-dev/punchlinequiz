@@ -29,17 +29,19 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 interface GoogleOAuthButtonProps {
   className?: string;
+  callbackUrl?: string;
 }
 
 export default function GoogleOAuthButton({
   className,
+  callbackUrl,
 }: GoogleOAuthButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
-      await signIn("google", { redirectTo: "/" });
+      await signIn("google", { callbackUrl: callbackUrl ?? "/" });
     } catch (error) {
       console.error("Sign in error:", error);
     } finally {
@@ -56,7 +58,7 @@ export default function GoogleOAuthButton({
     >
       <GoogleIcon className="h-5 w-5" />
       <span className="font-medium">
-        {isLoading ? "Signing in..." : "Sign in with Google"}
+        {isLoading ? "Anmeldung läuft..." : "Mit Google anmelden"}
       </span>
     </Button>
   );

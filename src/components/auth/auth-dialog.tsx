@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import GoogleOAuthButton from "../oauth/google-oauth-button";
+import { Button } from "../ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,34 +11,43 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { Button } from "../ui/button";
-import GoogleOAuthButton from "../oauth/google-oauth-button";
-import { cn } from "~/lib/utils";
 
 interface AuthDialogProps {
   className?: string;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  callbackUrl?: string;
 }
 
-export default function AuthDialog({ className, trigger }: AuthDialogProps) {
-  const [open, setOpen] = useState(false);
+export default function AuthDialog({ 
+  className, 
+  trigger, 
+  open, 
+  onOpenChange,
+  callbackUrl = "/play"
+}: AuthDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
+  const setIsOpen = isControlled ? onOpenChange : setInternalOpen;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       {trigger ? (
         <DialogTrigger asChild>{trigger}</DialogTrigger>
       ) : (
         <DialogTrigger asChild>
           <Button variant="outline" className={className}>
-            Sign in
+            Anmelden
           </Button>
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>Welcome to Punchline Quiz</DialogTitle>
+          <DialogTitle>Willkommen beim Punchline Quiz</DialogTitle>
           <DialogDescription>
-            Sign in to save your progress, compete with friends, and unlock more features.
+            Melde dich an, um unbegrenzt zu spielen, deinen Fortschritt zu speichern und mit Freunden zu vergleichen.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
@@ -46,19 +57,22 @@ export default function AuthDialog({ className, trigger }: AuthDialogProps) {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Continue with
+                Anmelden mit
               </span>
             </div>
           </div>
-          <GoogleOAuthButton className="w-full" />
+          <GoogleOAuthButton 
+            className="w-full" 
+            callbackUrl={callbackUrl}
+          />
           <p className="text-center text-sm text-muted-foreground">
-            By continuing, you agree to our{" "}
+            Mit der Anmeldung akzeptierst du unsere{" "}
             <a href="#" className="underline underline-offset-4 hover:text-primary">
-              Terms of Service
+              Nutzungsbedingungen
             </a>{" "}
-            and{" "}
+            und{" "}
             <a href="#" className="underline underline-offset-4 hover:text-primary">
-              Privacy Policy
+              Datenschutzerklärung
             </a>
             .
           </p>
@@ -66,4 +80,4 @@ export default function AuthDialog({ className, trigger }: AuthDialogProps) {
       </DialogContent>
     </Dialog>
   );
-} 
+}

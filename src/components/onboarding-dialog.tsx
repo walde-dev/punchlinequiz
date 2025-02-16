@@ -15,20 +15,29 @@ import { Label } from "./ui/label";
 import { useSession } from "next-auth/react";
 import { useToast } from "./ui/use-toast";
 
-export default function OnboardingDialog() {
+interface OnboardingDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export default function OnboardingDialog({ open: controlledOpen, onOpenChange }: OnboardingDialogProps) {
   const { data: session, status, update } = useSession();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [username, setUsername] = useState(session?.user?.name ?? "");
   const [avatarUrl, setAvatarUrl] = useState(session?.user?.image ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const isControlled = controlledOpen !== undefined;
+  const isOpen = isControlled ? controlledOpen : internalOpen;
+  const setIsOpen = isControlled ? onOpenChange : setInternalOpen;
+
   // Open dialog when user signs in and doesn't have a name
   useEffect(() => {
     if (status === "authenticated" && !session?.user?.name) {
-      setOpen(true);
+      setIsOpen?.(true);
     }
-  }, [status, session?.user?.name]);
+  }, [status, session?.user?.name, setIsOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +66,7 @@ export default function OnboardingDialog() {
       }
 
       await update({ name: username, image: avatarUrl });
-      setOpen(false);
+      setIsOpen?.(false);
       toast({
         title: "Erfolgreich gespeichert",
         description: "Dein Profil wurde aktualisiert.",
@@ -75,7 +84,7 @@ export default function OnboardingDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Profil vervollständigen</DialogTitle>

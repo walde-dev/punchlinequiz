@@ -56,6 +56,13 @@ export async function createPunchline(formData: FormData) {
     throw new Error("Missing required fields");
   }
 
+  // Split the acceptable solutions by comma and trim whitespace
+  const solutions = acceptableSolutions.split(",").map(s => s.trim());
+  // Add the perfect solution as an acceptable solution if not already included
+  if (!solutions.includes(perfectSolution)) {
+    solutions.push(perfectSolution);
+  }
+
   const session = await auth();
   if (!session?.user) {
     throw new Error("Not authenticated");
@@ -64,7 +71,7 @@ export async function createPunchline(formData: FormData) {
   await db.insert(punchlines).values({
     line,
     perfectSolution,
-    acceptableSolutions,
+    acceptableSolutions: JSON.stringify(solutions),
     songId,
     createdById: session.user.id,
     updatedAt: new Date(),
