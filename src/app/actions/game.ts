@@ -4,7 +4,10 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "~/server/db";
 
-type SafePunchline = Omit<typeof punchlines.$inferSelect, 'perfectSolution' | 'acceptableSolutions'> & {
+type SafePunchline = Omit<
+  typeof punchlines.$inferSelect,
+  "perfectSolution" | "acceptableSolutions"
+> & {
   line: string;
   song: {
     id: string;
@@ -38,9 +41,34 @@ type FullPunchline = typeof punchlines.$inferSelect & {
 };
 
 function hideSolution(line: string): string {
-  return line
-    .replace(/\{([^}]+)\}/, "...")
-    .replace(/\[([^\]]+)\]/, "...");
+  return line.replace(/\{([^}]+)\}/, "...").replace(/\[([^\]]+)\]/, "...");
+}
+
+function normalizeText(text: string): string {
+  let normalizedText = text.toLowerCase();
+
+  //remove all double spaces
+  normalizedText = normalizedText.replace(/\s+/g, " ");
+  //remove all leading and trailing spaces
+  normalizedText = normalizedText.trim();
+  //replace ß with ss
+  normalizedText = normalizedText.replace("ß", "ss");
+  //remove all commas
+  normalizedText = normalizedText.replace(",", "");
+  //remove all dots
+  normalizedText = normalizedText.replace(".", "");
+  //remove all question marks
+  normalizedText = normalizedText.replace("?", "");
+  //remove all exclamation marks
+  normalizedText = normalizedText.replace("!", "");
+  //remove all colons
+  normalizedText = normalizedText.replace(":", "");
+  //remove all semicolons
+  normalizedText = normalizedText.replace(";", "");
+  //remove all spaces and special characters
+  normalizedText = normalizedText.replace(/[^a-z0-9]/g, "");
+
+  return normalizedText;
 }
 
 export async function getRandomPunchline() {
@@ -147,9 +175,9 @@ export async function validateGuess(formData: FormData) {
     const acceptableSolutions = JSON.parse(
       punchline.acceptableSolutions,
     ) as string[];
-    const normalizedGuess = parsed.guess.toLowerCase().trim();
+    const normalizedGuess = normalizeText(parsed.guess);
     const isCorrect = acceptableSolutions.some(
-      (solution) => solution.toLowerCase().trim() === normalizedGuess,
+      (solution) => normalizeText(solution) === normalizedGuess,
     );
 
     if (isCorrect) {

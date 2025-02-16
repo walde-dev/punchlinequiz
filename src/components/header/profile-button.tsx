@@ -71,11 +71,7 @@ export default function ProfileButton({ className }: { className?: string }) {
             <UserIcon className="h-4 w-4" />
           </Button>
           {session.user?.isAdmin && (
-            <Button
-              variant="outline"
-              size="icon"
-              asChild
-            >
+            <Button variant="outline" size="icon" asChild>
               <Link href="/admin">
                 <ShieldIcon className="h-4 w-4" />
               </Link>
@@ -94,7 +90,10 @@ export default function ProfileButton({ className }: { className?: string }) {
     </div>
   ) : (
     <>
-      <OnboardingDialog open={showOnboarding} onOpenChange={setShowOnboarding} />
+      <OnboardingDialog
+        open={showOnboarding}
+        onOpenChange={setShowOnboarding}
+      />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="gap-2">
@@ -107,7 +106,9 @@ export default function ProfileButton({ className }: { className?: string }) {
                 height={24}
               />
             )}
-            <p className="text-sm text-muted-foreground">{session.user?.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {session.user?.name}
+            </p>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

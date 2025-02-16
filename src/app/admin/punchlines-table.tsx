@@ -115,7 +115,7 @@ export default function PunchlinesTable() {
 
       <div className="rounded-md border">
         <div
-          className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary hover:scrollbar-thumb-primary/80 scrollbar-always max-h-[80vh] overflow-y-auto"
+          className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary hover:scrollbar-thumb-primary/80 scrollbar-always max-h-[60vh] overflow-y-auto"
           style={{
             scrollbarGutter: "stable",
           }}
