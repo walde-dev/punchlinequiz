@@ -1,15 +1,14 @@
 /** @type {import("eslint").Linter.Config} */
-const config = {
-  parser: "@typescript-eslint/parser",
-  parserOptions: {
-    project: true,
-  },
-  plugins: ["@typescript-eslint", "drizzle"],
+module.exports = {
   extends: [
     "next/core-web-vitals",
-    "@typescript-eslint/recommended",
-    "@typescript-eslint/stylistic",
+    "plugin:@typescript-eslint/recommended",
   ],
+  parser: "@typescript-eslint/parser",
+  parserOptions: {
+    project: "./tsconfig.json",
+  },
+  plugins: ["@typescript-eslint", "drizzle"],
   rules: {
     "@typescript-eslint/array-type": "off",
     "@typescript-eslint/consistent-type-definitions": "off",
@@ -49,5 +48,3 @@ const config = {
     ],
   },
 };
-
-module.exports = config;

@@ -25,6 +25,7 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
     album: string;
   } | null>(null);
   const [acceptableSolutions, setAcceptableSolutions] = useState<string[]>([]);
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -68,7 +69,7 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
           disabled={mutation.isPending}
         />
         <p className="text-sm text-muted-foreground">
-          Beispiel: "Ich hab' den [Flow] wie Wasser, ihr seid nur Pfützen"
+          Beispiel: &ldquo;Ich hab&apos; den [Flow] wie Wasser, ihr seid nur Pfützen&rdquo;
         </p>
       </div>
 
@@ -91,13 +92,28 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
         <TagInput
           id="acceptableSolutions"
           name="acceptableSolutions"
+          placeholder="Drücke Enter um eine Lösung hinzuzufügen"
           value={acceptableSolutions}
-          onChange={setAcceptableSolutions}
-          placeholder="Gib eine Lösung ein und drücke Enter, Komma oder Leertaste"
-          disabled={mutation.isPending}
+          onChange={(value) => {
+            setAcceptableSolutions(value);
+            if (value.length === 0) {
+              setErrors((prev) => ({
+                ...prev,
+                acceptableSolutions: "Mindestens eine akzeptierte Lösung ist erforderlich",
+              }));
+            } else {
+              setErrors((prev) => ({
+                ...prev,
+                acceptableSolutions: undefined,
+              }));
+            }
+          }}
         />
+        {errors.acceptableSolutions && (
+          <p className="text-sm text-destructive">{errors.acceptableSolutions}</p>
+        )}
         <p className="text-sm text-muted-foreground">
-          Gib alle akzeptierten Antworten ein (inklusive der perfekten Lösung)
+          Füge hier alle akzeptierten Lösungen hinzu. Die &ldquo;perfekte Lösung&rdquo; wird automatisch hinzugefügt.
         </p>
       </div>
 

@@ -2,8 +2,9 @@ import SpotifyWebApi from "spotify-web-api-node";
 import { env } from "~/env";
 
 export const spotifyApi = new SpotifyWebApi({
-  clientId: env.SPOTIFY_CLIENT_ID,
+  clientId: env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
   clientSecret: env.SPOTIFY_CLIENT_SECRET,
+  redirectUri: `${env.NEXT_PUBLIC_APP_URL}/api/spotify/callback`,
 });
 
 let tokenExpirationTime = 0;

@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 type UpdateUserBody = {
   name: string;
   image?: string;
+  onboardingCompleted?: boolean;
 };
 
 const USERNAME_REGEX = /^[a-zA-Z0-9._]+$/;
@@ -38,7 +39,16 @@ export async function PATCH(req: Request) {
     }
 
     const body = (await req.json()) as UpdateUserBody;
-    const { name, image } = body;
+    const { name, image, onboardingCompleted } = body;
+
+    if (onboardingCompleted !== undefined) {
+      await db
+        .update(users)
+        .set({ onboardingCompleted })
+        .where(eq(users.id, session.user.id));
+
+      return NextResponse.json({ success: true });
+    }
 
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
@@ -76,20 +86,4 @@ export async function PATCH(req: Request) {
     }
     return new NextResponse("Internal Error", { status: 500 });
   }
-}
-
-export async function PATCH_onboarding(request: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
-  const { onboardingCompleted } = await request.json();
-
-  await db
-    .update(users)
-    .set({ onboardingCompleted })
-    .where(eq(users.id, session.user.id));
-
-  return NextResponse.json({ success: true });
 }

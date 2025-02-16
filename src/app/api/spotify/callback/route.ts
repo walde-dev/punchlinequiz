@@ -1,10 +1,8 @@
 import { auth } from "auth";
-import { redirect } from "next/navigation";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { env } from "~/env";
 import { db } from "~/server/db";
 import { accounts } from "~/server/db/schema";
-import { eq } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -14,7 +12,6 @@ export async function GET(request: NextRequest) {
 
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
-  const state = searchParams.get("state");
   const error = searchParams.get("error");
 
   if (error || !code) {
@@ -23,15 +20,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // TODO: Verify state matches the one we stored
-
   try {
     const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization: `Basic ${Buffer.from(
-          `${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`
+          `${env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`
         ).toString("base64")}`,
       },
       body: new URLSearchParams({

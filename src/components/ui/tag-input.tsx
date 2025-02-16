@@ -52,7 +52,7 @@ export function TagInput({
     }
   };
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleBlur = () => {
     if (inputValue) {
       addTag(inputValue);
     }

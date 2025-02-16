@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
-import { cn } from "~/lib/utils";
+import { ChevronsUpDown, Loader2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Command,
@@ -19,6 +18,7 @@ import {
 } from "~/components/ui/popover";
 import { useSpotifySearch, useImportSong } from "~/app/hooks/useSpotify";
 import { useDebounce } from "~/app/hooks/useDebounce";
+import Image from "next/image";
 
 interface Song {
   id: string;
@@ -90,11 +90,14 @@ export function SongSearch({ onSelect }: SongSearchProps) {
             ) : selectedSong ? (
               <>
                 {selectedSong.image && (
-                  <img
-                    src={selectedSong.image}
-                    alt={selectedSong.name}
-                    className="h-8 w-8 rounded-sm object-cover"
-                  />
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded">
+                    <Image
+                      src={selectedSong.image}
+                      alt={selectedSong.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
                 )}
                 <div className="flex flex-col items-start truncate">
                   <span className="font-medium truncate">{selectedSong.name}</span>
@@ -138,11 +141,14 @@ export function SongSearch({ onSelect }: SongSearchProps) {
                   >
                     <div className="flex items-center gap-3">
                       {song.image && (
-                        <img
-                          src={song.image}
-                          alt={song.name}
-                          className="h-10 w-10 rounded-sm object-cover"
-                        />
+                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded">
+                          <Image
+                            src={song.image}
+                            alt={song.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
                       )}
                       <div className="flex flex-col">
                         <span className="font-medium">{song.name}</span>

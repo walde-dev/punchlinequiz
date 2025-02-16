@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "~/server/db";
 import {
   punchlines,
-  songs,
+  type songs,
   type artists,
   type albums,
 } from "~/server/db/schema";

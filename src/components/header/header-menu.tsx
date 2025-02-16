@@ -11,7 +11,6 @@ import {
 } from "../ui/sheet";
 import useMediaQuery from "~/app/hooks/useMediaQuery";
 import ProfileButton from "./profile-button";
-import { LogOutIcon } from "lucide-react";
 
 export default function HeaderMenu() {
   const isMobile = useMediaQuery("(max-width: 768px)");
