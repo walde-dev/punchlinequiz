@@ -8,6 +8,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { useToast } from "~/components/ui/use-toast";
 import { useCreatePunchline } from "../hooks/usePunchlines";
 import { SongSearch } from "~/components/song-search";
+import { TagInput } from "~/components/ui/tag-input";
 
 interface PunchlineFormProps {
   onSuccess?: () => void;
@@ -23,10 +24,12 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
     artist: string;
     album: string;
   } | null>(null);
+  const [acceptableSolutions, setAcceptableSolutions] = useState<string[]>([]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    formData.set("acceptableSolutions", acceptableSolutions.join(","));
 
     try {
       await mutation.mutateAsync(formData);
@@ -36,6 +39,7 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
       });
       formRef.current?.reset();
       setSelectedSong(null);
+      setAcceptableSolutions([]);
       onSuccess?.();
     } catch (error) {
       toast({
@@ -84,15 +88,16 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="acceptableSolutions">Akzeptierte Lösungen</Label>
-        <Input
+        <TagInput
           id="acceptableSolutions"
           name="acceptableSolutions"
-          placeholder="Flow, flow, Fluss"
-          required
+          value={acceptableSolutions}
+          onChange={setAcceptableSolutions}
+          placeholder="Gib eine Lösung ein und drücke Enter, Komma oder Leertaste"
           disabled={mutation.isPending}
         />
         <p className="text-sm text-muted-foreground">
-          Kommagetrennte Liste aller akzeptierten Antworten (inklusive der perfekten Lösung)
+          Gib alle akzeptierten Antworten ein (inklusive der perfekten Lösung)
         </p>
       </div>
 

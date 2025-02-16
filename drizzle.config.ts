@@ -4,11 +4,12 @@ import { env } from "~/env";
 
 export default {
   schema: "./src/server/db/schema.ts",
-  dialect: "sqlite",
+  dialect: "turso",
   out: "./drizzle",
   verbose: true,
   strict: true,
   dbCredentials: {
-    url: env.DATABASE_URL.replace("file:", ""),
+    url: env.DATABASE_URL,
+    authToken: env.DATABASE_AUTH_TOKEN,
   },
 } satisfies Config;
