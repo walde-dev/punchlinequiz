@@ -9,16 +9,52 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
 import PunchlineForm from "./punchline-form";
-import { usePunchlines } from "../hooks/usePunchlines";
+import { usePunchlines, useDeletePunchline } from "../hooks/usePunchlines";
 import { type Punchline } from "../actions/punchlines";
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import { useToast } from "~/components/ui/use-toast";
 
 export default function PunchlinesTable() {
   const [open, setOpen] = useState(false);
+  const [editPunchline, setEditPunchline] = useState<Punchline | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [punchlineToDelete, setPunchlineToDelete] = useState<number | null>(
+    null,
+  );
   const { data: punchlines, isLoading, error } = usePunchlines();
+  const deleteMutation = useDeletePunchline();
+  const { toast } = useToast();
+
+  const handleDelete = async () => {
+    if (!punchlineToDelete) return;
+
+    try {
+      await deleteMutation.mutateAsync(punchlineToDelete);
+      toast({
+        title: "Erfolgreich",
+        description: "Punchline wurde erfolgreich gelöscht!",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Punchline konnte nicht gelöscht werden.",
+      });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setPunchlineToDelete(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -49,44 +85,109 @@ export default function PunchlinesTable() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Neue Punchline hinzufügen</DialogTitle>
+              <DialogTitle>
+                {editPunchline
+                  ? "Punchline bearbeiten"
+                  : "Neue Punchline hinzufügen"}
+              </DialogTitle>
             </DialogHeader>
-            <PunchlineForm onSuccess={() => setOpen(false)} />
+            <PunchlineForm
+              onSuccess={() => {
+                setOpen(false);
+                setEditPunchline(null);
+              }}
+              initialData={
+                !!editPunchline
+                  ? {
+                      ...editPunchline,
+                      acceptableSolutions: Array.isArray(
+                        editPunchline.acceptableSolutions,
+                      )
+                        ? editPunchline.acceptableSolutions
+                        : JSON.parse(editPunchline.acceptableSolutions),
+                    }
+                  : undefined
+              }
+            />
           </DialogContent>
         </Dialog>
       </div>
 
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Punchline</TableHead>
-              <TableHead>Künstler</TableHead>
-              <TableHead>Song</TableHead>
-              <TableHead>Album</TableHead>
-              <TableHead>Lösung</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {punchlines?.map((punchline: Punchline) => (
-              <TableRow key={punchline.id}>
-                <TableCell className="font-medium">{punchline.line}</TableCell>
-                <TableCell>{punchline.song.artist.name}</TableCell>
-                <TableCell>{punchline.song.name}</TableCell>
-                <TableCell>{punchline.song.album.name}</TableCell>
-                <TableCell>{punchline.perfectSolution}</TableCell>
-              </TableRow>
-            ))}
-            {(!punchlines || punchlines.length === 0) && (
+        <div
+          className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary hover:scrollbar-thumb-primary/80 scrollbar-always max-h-[80vh] overflow-y-auto"
+          style={{
+            scrollbarGutter: "stable",
+          }}
+        >
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  Keine Punchlines gefunden
-                </TableCell>
+                <TableHead>Punchline</TableHead>
+                <TableHead>Künstler</TableHead>
+                <TableHead>Song</TableHead>
+                <TableHead>Album</TableHead>
+                <TableHead>Lösung</TableHead>
+                <TableHead className="w-[100px]">Aktionen</TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {punchlines?.map((punchline: Punchline) => (
+                <TableRow key={punchline.id}>
+                  <TableCell className="font-medium">
+                    {punchline.line}
+                  </TableCell>
+                  <TableCell>{punchline.song.artist.name}</TableCell>
+                  <TableCell>{punchline.song.name}</TableCell>
+                  <TableCell>{punchline.song.album.name}</TableCell>
+                  <TableCell>{punchline.perfectSolution}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setEditPunchline(punchline);
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setPunchlineToDelete(punchline.id);
+                          setDeleteConfirmOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(!punchlines || punchlines.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    Keine Punchlines gefunden
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Punchline löschen"
+        description="Bist du sicher, dass du diese Punchline löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden."
+        onConfirm={handleDelete}
+        variant="destructive"
+        confirmText="Löschen"
+      />
     </div>
   );
-} 
+}

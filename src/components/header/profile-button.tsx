@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOutIcon, UserIcon } from "lucide-react";
+import { LogOutIcon, UserIcon, ShieldIcon } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 import { useState } from "react";
@@ -12,8 +12,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "../ui/dropdown-menu";
 import OnboardingDialog from "../onboarding-dialog";
+import Link from "next/link";
 
 export default function ProfileButton({ className }: { className?: string }) {
   const { data: session, status } = useSession();
@@ -68,6 +70,17 @@ export default function ProfileButton({ className }: { className?: string }) {
           >
             <UserIcon className="h-4 w-4" />
           </Button>
+          {session.user?.isAdmin && (
+            <Button
+              variant="outline"
+              size="icon"
+              asChild
+            >
+              <Link href="/admin">
+                <ShieldIcon className="h-4 w-4" />
+              </Link>
+            </Button>
+          )}
           <Button
             onClick={handleSignOut}
             variant="outline"
@@ -105,6 +118,18 @@ export default function ProfileButton({ className }: { className?: string }) {
             <UserIcon className="h-4 w-4" />
             Profil bearbeiten
           </DropdownMenuItem>
+          {session.user?.isAdmin && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/admin" className="flex items-center gap-2">
+                  <ShieldIcon className="h-4 w-4" />
+                  Admin Dashboard
+                </Link>
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             className="gap-2"
             onClick={handleSignOut}

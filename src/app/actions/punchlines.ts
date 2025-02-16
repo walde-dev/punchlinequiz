@@ -83,3 +83,39 @@ export async function deletePunchline(id: number) {
 
   await db.delete(punchlines).where(eq(punchlines.id, id));
 }
+
+export async function updatePunchline(formData: FormData) {
+  await requireAdmin();
+
+  const id = formData.get("id");
+  const line = formData.get("line") as string;
+  const perfectSolution = formData.get("perfectSolution") as string;
+  const acceptableSolutions = formData.get("acceptableSolutions") as string;
+  const songId = formData.get("songId") as string;
+
+  if (!id || !line || !perfectSolution || !acceptableSolutions || !songId) {
+    throw new Error("Missing required fields");
+  }
+
+  // Split the acceptable solutions by comma and trim whitespace
+  const solutions = acceptableSolutions.split(",").map(s => s.trim());
+  // Add the perfect solution as an acceptable solution if not already included
+  if (!solutions.includes(perfectSolution)) {
+    solutions.push(perfectSolution);
+  }
+
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error("Not authenticated");
+  }
+
+  await db.update(punchlines)
+    .set({
+      line,
+      perfectSolution,
+      acceptableSolutions: JSON.stringify(solutions),
+      songId,
+      updatedAt: new Date(),
+    })
+    .where(eq(punchlines.id, Number(id)));
+}

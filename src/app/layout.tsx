@@ -24,7 +24,7 @@ export default function RootLayout({
         <Providers>
           <main className="flex min-h-[calc(100vh-1rem)] flex-col items-center px-6 py-6">
             <Header />
-            <div className="container w-full flex-1 pt-12">
+            <div className="w-full flex-1 pt-12 md:container">
               {children}
               <OnboardingDialog />
             </div>

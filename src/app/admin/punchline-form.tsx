@@ -6,37 +6,68 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { useToast } from "~/components/ui/use-toast";
-import { useCreatePunchline } from "../hooks/usePunchlines";
+import { useCreatePunchline, useUpdatePunchline } from "../hooks/usePunchlines";
 import { SongSearch } from "~/components/song-search";
 import { TagInput } from "~/components/ui/tag-input";
 
 interface PunchlineFormProps {
   onSuccess?: () => void;
+  initialData?: {
+    id: number;
+    line: string;
+    perfectSolution: string;
+    acceptableSolutions: string[];
+    song: {
+      id: string;
+      name: string;
+      artist: {
+        name: string;
+      };
+      album: {
+        name: string;
+      };
+    };
+  };
 }
 
-export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
+export default function PunchlineForm({ onSuccess, initialData }: PunchlineFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const { toast } = useToast();
-  const mutation = useCreatePunchline();
+  const createMutation = useCreatePunchline();
+  const updateMutation = useUpdatePunchline();
   const [selectedSong, setSelectedSong] = useState<{
     id: string;
     name: string;
     artist: string;
     album: string;
-  } | null>(null);
-  const [acceptableSolutions, setAcceptableSolutions] = useState<string[]>([]);
+  } | null>(initialData ? {
+    id: initialData.song.id,
+    name: initialData.song.name,
+    artist: initialData.song.artist.name,
+    album: initialData.song.album.name,
+  } : null);
+  const [acceptableSolutions, setAcceptableSolutions] = useState<string[]>(
+    initialData?.acceptableSolutions ?? []
+  );
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     formData.set("acceptableSolutions", acceptableSolutions.join(","));
+    if (initialData) {
+      formData.set("id", initialData.id.toString());
+    }
 
     try {
-      await mutation.mutateAsync(formData);
+      if (initialData) {
+        await updateMutation.mutateAsync(formData);
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
       toast({
         title: "Erfolgreich",
-        description: "Punchline wurde erfolgreich hinzugefügt!",
+        description: `Punchline wurde erfolgreich ${initialData ? "aktualisiert" : "hinzugefügt"}!`,
       });
       formRef.current?.reset();
       setSelectedSong(null);
@@ -66,10 +97,11 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
           placeholder="Gib die Punchline ein, verwende [...] für den zu erratenden Teil"
           required
           className="min-h-[100px]"
-          disabled={mutation.isPending}
+          disabled={initialData ? updateMutation.isPending : createMutation.isPending}
+          defaultValue={initialData?.line}
         />
         <p className="text-sm text-muted-foreground">
-          Beispiel: &ldquo;Ich hab&apos; den [Flow] wie Wasser, ihr seid nur Pfützen&rdquo;
+          Beispiel: &ldquo;Ich hab&apos; den [Flow] wie Wasser, ihr seid nur Pfützen&rdquo;. Verwende / für einen Zeilenumbruch.
         </p>
       </div>
 
@@ -80,7 +112,8 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
           name="perfectSolution"
           placeholder="Die exakte Lösung"
           required
-          disabled={mutation.isPending}
+          disabled={initialData ? updateMutation.isPending : createMutation.isPending}
+          defaultValue={initialData?.perfectSolution}
         />
         <p className="text-sm text-muted-foreground">
           Die exakte Lösung, wie sie im Song vorkommt
@@ -157,8 +190,21 @@ export default function PunchlineForm({ onSuccess }: PunchlineFormProps) {
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={mutation.isPending || !selectedSong}>
-        {mutation.isPending ? "Wird hinzugefügt..." : "Punchline hinzufügen"}
+      <Button 
+        type="submit" 
+        className="w-full" 
+        disabled={
+          (initialData ? updateMutation.isPending : createMutation.isPending) || 
+          !selectedSong
+        }
+      >
+        {initialData
+          ? updateMutation.isPending
+            ? "Wird aktualisiert..."
+            : "Punchline aktualisieren"
+          : createMutation.isPending
+            ? "Wird hinzugefügt..."
+            : "Punchline hinzufügen"}
       </Button>
     </form>
   );

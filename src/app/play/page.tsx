@@ -42,6 +42,20 @@ type GuessResult = {
   };
 };
 
+function formatPunchlineText(text: string) {
+  return text.split("/").map((part, index, array) => (
+    <span key={index}>
+      {part}
+      {index < array.length - 1 && (
+        <>
+          <span className="text-primary font-bold">/</span>
+          <br />
+        </>
+      )}
+    </span>
+  ));
+}
+
 export default function PlayPage() {
   const formRef = useRef<HTMLFormElement>(null);
   const albumRef = useRef<HTMLDivElement>(null);
@@ -98,7 +112,10 @@ export default function PlayPage() {
     if (lastGuess?.isCorrect && albumRef.current) {
       // Small delay to ensure animations have started
       setTimeout(() => {
-        albumRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        albumRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
       }, 100);
     }
   }, [lastGuess?.isCorrect]);
@@ -232,7 +249,7 @@ export default function PlayPage() {
           numberOfPieces={200}
         />
       )}
-      <div className="container flex items-center justify-center">
+      <div className="flex items-center justify-center">
         <div className="w-full">
           <Card>
             <CardHeader>
@@ -258,9 +275,11 @@ export default function PlayPage() {
                         Punchline:
                       </h3>
                       <p className="text-3xl font-bold leading-normal md:text-4xl">
-                        {lastGuess?.isCorrect && lastGuess.punchline
-                          ? lastGuess.punchline.line
-                          : punchline?.line}
+                        {formatPunchlineText(
+                          lastGuess?.isCorrect && lastGuess.punchline
+                            ? lastGuess.punchline.line
+                            : punchline?.line ?? ""
+                        )}
                       </p>
                     </div>
                     {lastGuess?.isCorrect && lastGuess.punchline && (
@@ -291,7 +310,7 @@ export default function PlayPage() {
                     )}
                   </div>
                   {lastGuess?.isCorrect && lastGuess.punchline && (
-                    <div 
+                    <div
                       ref={albumRef}
                       className="h-fit space-y-2 rounded-lg border p-4 duration-500 animate-in slide-in-from-right"
                     >
