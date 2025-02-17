@@ -442,6 +442,18 @@ export default function PlayPage() {
                           ? "Gelöst!"
                           : "Prüfen"}
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isPunchlineLoading || isFetching}
+                      onClick={() => {
+                        setLastGuess(null);
+                        refetch();
+                      }}
+                      className="text-sm md:text-base"
+                    >
+                      {isPunchlineLoading || isFetching ? "Lade..." : "Neue Punchline"}
+                    </Button>
                   </div>
                   {lastGuess && !lastGuess.isCorrect && (
                     <Alert
