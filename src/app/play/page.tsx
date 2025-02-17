@@ -413,7 +413,10 @@ export default function PlayPage() {
                               size="default"
                               variant="outline"
                               className="md:size-lg"
-                              onClick={() => setShowSolution(true)}
+                              onClick={() => {
+                                setShowSolution(true);
+                                formRef.current?.reset();
+                              }}
                             >
                               Lösung anzeigen
                             </Button>
@@ -440,6 +443,7 @@ export default function PlayPage() {
                                   setLastGuess(null);
                                   setWrongAttempts(0);
                                   setShowSolution(false);
+                                  formRef.current?.reset();
                                   refetch();
                                 }}
                               >
@@ -548,6 +552,7 @@ export default function PlayPage() {
                           setLastGuess(null);
                           setWrongAttempts(0);
                           setShowSolution(false);
+                          formRef.current?.reset();
                           refetch();
                         }}
                         className="flex-1 text-sm md:text-base"
