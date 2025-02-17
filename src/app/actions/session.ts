@@ -19,9 +19,10 @@ export async function getOrCreateAnonymousSession(fingerprint: string) {
       fingerprint,
       totalPlays: 0,
       correctGuesses: 0,
-      createdAt: new Date(),
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date()
     })
     .returning();
 
   return newSession;
-} 
+}
