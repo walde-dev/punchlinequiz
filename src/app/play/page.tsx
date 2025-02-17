@@ -412,7 +412,7 @@ export default function PlayPage() {
                     name="punchlineId"
                     value={punchline?.id ?? ""}
                   />
-                  <div className="flex gap-2">
+                  <div className="space-y-2 md:space-y-0 md:flex md:gap-2 md:items-center">
                     <Input
                       name="guess"
                       placeholder={
@@ -425,35 +425,37 @@ export default function PlayPage() {
                         lastGuess?.isCorrect
                       }
                       autoComplete="off"
-                      className="text-sm md:text-base"
+                      className="text-sm md:text-base w-full"
                     />
-                    <Button
-                      type="submit"
-                      disabled={
-                        isPunchlineLoading ||
-                        mutation.isPending ||
-                        lastGuess?.isCorrect
-                      }
-                      className="text-sm md:text-base"
-                    >
-                      {mutation.isPending
-                        ? "Prüfe..."
-                        : lastGuess?.isCorrect
-                          ? "Gelöst!"
-                          : "Prüfen"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isPunchlineLoading || isFetching}
-                      onClick={() => {
-                        setLastGuess(null);
-                        refetch();
-                      }}
-                      className="text-sm md:text-base"
-                    >
-                      {isPunchlineLoading || isFetching ? "Lade..." : "Neue Punchline"}
-                    </Button>
+                    <div className="flex gap-2 md:w-auto md:min-w-[300px]">
+                      <Button
+                        type="submit"
+                        disabled={
+                          isPunchlineLoading ||
+                          mutation.isPending ||
+                          lastGuess?.isCorrect
+                        }
+                        className="text-sm md:text-base flex-1"
+                      >
+                        {mutation.isPending
+                          ? "Prüfe..."
+                          : lastGuess?.isCorrect
+                            ? "Gelöst!"
+                            : "Prüfen"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isPunchlineLoading || isFetching}
+                        onClick={() => {
+                          setLastGuess(null);
+                          refetch();
+                        }}
+                        className="text-sm md:text-base flex-1"
+                      >
+                        {isPunchlineLoading || isFetching ? "Lade..." : "Neue Punchline"}
+                      </Button>
+                    </div>
                   </div>
                   {lastGuess && !lastGuess.isCorrect && (
                     <Alert
