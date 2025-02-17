@@ -48,7 +48,7 @@ function formatPunchlineText(text: string) {
       {part}
       {index < array.length - 1 && (
         <>
-          <span className="text-primary font-bold">/</span>
+          <span className="font-bold text-primary">/</span>
           <br />
         </>
       )}
@@ -59,7 +59,13 @@ function formatPunchlineText(text: string) {
 export default function PlayPage() {
   const formRef = useRef<HTMLFormElement>(null);
   const albumRef = useRef<HTMLDivElement>(null);
-  const { data: punchline, isLoading, isError } = useRandomPunchline();
+  const {
+    data: punchline,
+    refetch,
+    isLoading,
+    isFetching,
+    isError,
+  } = useRandomPunchline();
   const mutation = useValidateGuess();
   const { toast } = useToast();
   const { data: session, status } = useSession();
@@ -259,7 +265,7 @@ export default function PlayPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {isLoading ? (
+              {isLoading || isFetching ? (
                 <div className="space-y-4">
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-4 w-1/2" />
@@ -278,7 +284,7 @@ export default function PlayPage() {
                         {formatPunchlineText(
                           lastGuess?.isCorrect && lastGuess.punchline
                             ? lastGuess.punchline.line
-                            : punchline?.line ?? ""
+                            : (punchline?.line ?? ""),
                         )}
                       </p>
                     </div>
@@ -300,7 +306,7 @@ export default function PlayPage() {
                             className="bg-green-600 text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl"
                             onClick={() => {
                               setLastGuess(null);
-                              window.location.reload();
+                              refetch();
                             }}
                           >
                             Nächste Punchline →
@@ -312,7 +318,7 @@ export default function PlayPage() {
                   {lastGuess?.isCorrect && lastGuess.punchline && (
                     <div
                       ref={albumRef}
-                      className="h-fit space-y-2 rounded-lg border p-4 duration-500 animate-in md:slide-in-from-right slide-in-from-bottom"
+                      className="h-fit space-y-2 rounded-lg border p-4 duration-500 animate-in slide-in-from-bottom md:slide-in-from-right"
                     >
                       <h3 className="font-semibold">Song:</h3>
                       <div className="space-y-4">

@@ -5,6 +5,7 @@ import {
   primaryKey,
   sqliteTableCreator,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { type AdapterAccount } from "next-auth/adapters";
 
@@ -117,7 +118,7 @@ export const songsRelations = relations(songs, ({ one, many }) => ({
   punchlines: many(punchlines),
 }));
 
-export const punchlineRelations = relations(punchlines, ({ one }) => ({
+export const punchlineRelations = relations(punchlines, ({ one, many }) => ({
   song: one(songs, {
     fields: [punchlines.songId],
     references: [songs.id],
@@ -126,6 +127,7 @@ export const punchlineRelations = relations(punchlines, ({ one }) => ({
     fields: [punchlines.createdById],
     references: [users.id],
   }),
+  solvedBy: many(solvedPunchlines),
 }));
 
 export const posts = createTable(
@@ -165,6 +167,7 @@ export const users = createTable("user", {
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   punchlines: many(punchlines),
+  solvedPunchlines: many(solvedPunchlines),
 }));
 
 export const accounts = createTable(
@@ -225,3 +228,30 @@ export const verificationTokens = createTable(
     compoundKey: primaryKey(vt.identifier, vt.token),
   })
 );
+
+export const solvedPunchlines = createTable(
+  "solved_punchline",
+  {
+    id: int("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+    userId: text("user_id", { length: 255 })
+      .notNull()
+      .references(() => users.id),
+    punchlineId: int("punchline_id")
+      .notNull()
+      .references(() => punchlines.id),
+    solution: text("solution").notNull(), // The actual solution provided by the user
+    solvedAt: int("solved_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  },
+  (solved) => ({
+    userIdIdx: index("solved_punchline_user_idx").on(solved.userId),
+    punchlineIdIdx: index("solved_punchline_punchline_idx").on(solved.punchlineId),
+    uniqueSolve: uniqueIndex("solved_punchline_unique_idx").on(solved.userId, solved.punchlineId), // Make sure each user can only solve each punchline once
+  })
+);
+
+export const solvedPunchlinesRelations = relations(solvedPunchlines, ({ one }) => ({
+  user: one(users, { fields: [solvedPunchlines.userId], references: [users.id] }),
+  punchline: one(punchlines, { fields: [solvedPunchlines.punchlineId], references: [punchlines.id] }),
+}));

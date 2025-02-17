@@ -1,8 +1,9 @@
 "use server";
-import { punchlines } from "~/server/db/schema";
+import { punchlines, solvedPunchlines } from "~/server/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "~/server/db";
+import { auth } from "auth";
 
 type SafePunchline = Omit<
   typeof punchlines.$inferSelect,
@@ -150,6 +151,7 @@ const validateGuessSchema = z.object({
 });
 
 export async function validateGuess(formData: FormData) {
+  const session = await auth();
   const parsed = validateGuessSchema.parse({
     punchlineId: Number(formData.get("punchlineId")),
     guess: formData.get("guess"),
@@ -179,6 +181,15 @@ export async function validateGuess(formData: FormData) {
     const isCorrect = acceptableSolutions.some(
       (solution) => normalizeText(solution) === normalizedGuess,
     );
+
+    if (isCorrect && session?.user) {
+      // Record the successful attempt
+      await db.insert(solvedPunchlines).values({
+        userId: session.user.id,
+        punchlineId: punchline.id,
+        solution: parsed.guess,
+      }).onConflictDoNothing(); // If user has already solved this punchline, do nothing
+    }
 
     if (isCorrect) {
       // If correct, return the full punchline data

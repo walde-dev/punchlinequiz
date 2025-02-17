@@ -102,11 +102,10 @@ export function SongSearch({ onSelect }: SongSearchProps) {
               <>
                 {selectedSong.image && (
                   <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded">
-                    <Image
+                    <img
                       src={selectedSong.image}
                       alt={selectedSong.name}
-                      fill
-                      className="object-cover"
+                      className="h-full w-full object-cover"
                     />
                   </div>
                 )}
@@ -155,11 +154,10 @@ export function SongSearch({ onSelect }: SongSearchProps) {
                     <div className="flex items-center gap-3">
                       {song.image && (
                         <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded">
-                          <Image
+                          <img
                             src={song.image}
                             alt={song.name}
-                            fill
-                            className="object-cover"
+                            className="h-full w-full object-cover"
                           />
                         </div>
                       )}

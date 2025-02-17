@@ -50,12 +50,10 @@ export default function ProfileButton({ className }: { className?: string }) {
     <div className="flex flex-col items-start gap-1 rounded-lg border p-4">
       <div className="flex w-full items-center gap-3">
         {session.user?.image && (
-          <Image
+          <img
             src={session.user.image}
             alt="Profile"
             className="h-10 w-10 rounded-full"
-            width={40}
-            height={40}
           />
         )}
         <div>
@@ -98,12 +96,10 @@ export default function ProfileButton({ className }: { className?: string }) {
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="gap-2">
             {session.user?.image && (
-              <Image
+              <img
                 src={session.user.image}
                 alt="Profile"
-                className="rounded-full"
-                width={24}
-                height={24}
+                className="h-6 w-6 rounded-full"
               />
             )}
             <p className="text-sm text-muted-foreground">
