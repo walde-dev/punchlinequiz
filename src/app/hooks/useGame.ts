@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getRandomPunchline, validateGuess, startNewGame } from "../actions/game";
-import { type Punchline } from "../actions/punchlines";
-
-type RandomPunchline = Omit<Punchline, "perfectSolution" | "acceptableSolutions">;
+import { startNewGame, validateGuess } from "../actions/game";
+import type { Punchline } from "../actions/punchlines";
 
 export function useRandomPunchline(fingerprint?: string) {
   return useQuery({

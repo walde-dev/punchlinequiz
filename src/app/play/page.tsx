@@ -21,6 +21,7 @@ import AuthDialog from "~/components/auth/auth-dialog";
 import ReactConfetti from "react-confetti";
 import { useWindowSize } from "react-use";
 import { useFingerprint } from "../hooks/useFingerprint";
+import Link from "next/link";
 
 const MAX_FREE_PLAYS = 3;
 const PLAYS_RESET_HOURS = 24;
@@ -81,7 +82,7 @@ function WinningScreen() {
             asChild
             className="bg-green-600 text-white hover:bg-green-700"
           >
-            <a href="/">Zurück zur Startseite</a>
+            <Link href="/">Zurück zur Startseite</Link>
           </Button>
         </div>
       </CardContent>

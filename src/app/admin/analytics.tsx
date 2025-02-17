@@ -228,12 +228,46 @@ export default function Analytics() {
   const { data: analytics, isLoading: isLoadingAnalytics } = usePunchlineAnalytics();
   const { data: stats, isLoading: isLoadingStats } = useOverallStats(timeSpan);
   const [expandedPunchlines, setExpandedPunchlines] = useState<number[]>([]);
+  const [sortConfig, setSortConfig] = useState<{
+    key: 'line' | 'song' | 'totalSolves' | 'solvePercentage';
+    direction: 'asc' | 'desc';
+  }>({ key: 'totalSolves', direction: 'desc' });
 
   const toggleExpand = (id: number) => {
     setExpandedPunchlines((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
     );
   };
+
+  const handleSort = (key: typeof sortConfig.key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc',
+    }));
+  };
+
+  const sortedAnalytics = React.useMemo(() => {
+    if (!analytics) return [];
+    
+    return [...analytics].sort((a, b) => {
+      const direction = sortConfig.direction === 'asc' ? 1 : -1;
+      
+      switch (sortConfig.key) {
+        case 'line':
+          return direction * a.line.localeCompare(b.line);
+        case 'song':
+          const songA = `${a.song.artist} - ${a.song.name}`;
+          const songB = `${b.song.artist} - ${b.song.name}`;
+          return direction * songA.localeCompare(songB);
+        case 'totalSolves':
+          return direction * (a.totalSolves - b.totalSolves);
+        case 'solvePercentage':
+          return direction * (a.solvePercentage - b.solvePercentage);
+        default:
+          return 0;
+      }
+    });
+  }, [analytics, sortConfig]);
 
   if (isLoadingAnalytics || isLoadingStats) {
     return (
@@ -340,17 +374,51 @@ export default function Analytics() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-auto">Punchline</TableHead>
-                    <TableHead className="w-[200px]">Song</TableHead>
-                    <TableHead className="w-[120px] text-center">
-                      Gelöst von
+                    <TableHead 
+                      className="w-auto cursor-pointer hover:text-primary"
+                      onClick={() => handleSort('line')}
+                    >
+                      Punchline {sortConfig.key === 'line' && (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
                     </TableHead>
-                    <TableHead className="w-[200px]">Fortschritt</TableHead>
+                    <TableHead 
+                      className="w-[200px] cursor-pointer hover:text-primary"
+                      onClick={() => handleSort('song')}
+                    >
+                      Song {sortConfig.key === 'song' && (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </TableHead>
+                    <TableHead 
+                      className="w-[150px] text-center cursor-pointer hover:text-primary"
+                      onClick={() => handleSort('totalSolves')}
+                    >
+                      Gelöst von {sortConfig.key === 'totalSolves' && (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </TableHead>
+                    <TableHead 
+                      className="w-[200px] cursor-pointer hover:text-primary"
+                      onClick={() => handleSort('solvePercentage')}
+                    >
+                      Fortschritt {sortConfig.key === 'solvePercentage' && (
+                        <span className="ml-1">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {analytics?.map((punchline) => (
+                  {sortedAnalytics.map((punchline) => (
                     <React.Fragment key={punchline.id}>
                       <TableRow>
                         <TableCell className="font-medium">

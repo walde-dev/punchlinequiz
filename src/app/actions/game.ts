@@ -1,5 +1,6 @@
 "use server";
-import { punchlines, solvedPunchlines, anonymousSessions, anonymousActivity, songs, artists, albums } from "~/server/db/schema";
+import { punchlines, solvedPunchlines, anonymousSessions, anonymousActivity } from "~/server/db/schema";
+import type { songs, artists, albums } from "~/server/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "~/server/db";

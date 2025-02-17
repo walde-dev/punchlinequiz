@@ -1,6 +1,5 @@
 "use server";
 
-import { auth } from "auth";
 import { db } from "~/server/db";
 import { albums, artists, songs, accounts } from "~/server/db/schema";
 import { getAlbum, getArtist, getTrack, searchTrack } from "~/server/spotify";

@@ -2,8 +2,9 @@
 
 import { auth } from "auth";
 import { z } from "zod";
-import { and, eq, desc } from "drizzle-orm";
-import { songs, punchlines, albums, artists } from "~/server/db/schema";
+import { eq, desc } from "drizzle-orm";
+import { punchlines } from "~/server/db/schema";
+import type { songs, albums, artists } from "~/server/db/schema";
 import { requireAdmin } from "~/server/auth";
 import { db } from "~/server/db";
 
