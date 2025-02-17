@@ -357,7 +357,7 @@ export default function PlayPage() {
                 </div>
               ) : punchline ? (
                 <div
-                  className={`grid gap-4 md:gap-6 ${lastGuess?.isCorrect ? "grid-cols-1 md:grid-cols-[1fr,300px]" : "grid-cols-1"}`}
+                  className={`grid gap-4 md:gap-6 ${lastGuess?.isCorrect || (lastGuess?.punchline && showSolution) ? "grid-cols-1 md:grid-cols-[1fr,300px]" : "grid-cols-1"}`}
                 >
                   <div className="space-y-6">
                     <h3 className="text-sm font-medium text-muted-foreground md:text-base">
@@ -400,10 +400,60 @@ export default function PlayPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Show solution after 3 wrong attempts */}
+                    {!lastGuess?.isCorrect && lastGuess?.punchline && (
+                      <div className="space-y-3 duration-500 animate-in slide-in-from-bottom md:space-y-4">
+                        {!showSolution ? (
+                          <div className="flex flex-col items-center gap-3">
+                            <p className="text-center text-sm text-muted-foreground md:text-base">
+                              Du hast alle Versuche aufgebraucht. Möchtest du die Lösung sehen?
+                            </p>
+                            <Button
+                              size="default"
+                              variant="outline"
+                              className="md:size-lg"
+                              onClick={() => setShowSolution(true)}
+                            >
+                              Lösung anzeigen
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <Alert variant="destructive" className="py-2 md:py-4">
+                              <XCircle className="h-4 w-4" />
+                              <AlertTitle>Falsch!</AlertTitle>
+                              <AlertDescription className="text-sm md:text-base">
+                                <p>
+                                  Die richtige Lösung war:{" "}
+                                  <span className="rounded bg-background/80 px-1.5 py-0.5 font-medium text-foreground">
+                                    &quot;{lastGuess.punchline.perfectSolution}&quot;
+                                  </span>
+                                </p>
+                              </AlertDescription>
+                            </Alert>
+                            <div className="flex justify-center">
+                              <Button
+                                size="default"
+                                className="md:size-lg"
+                                onClick={() => {
+                                  setLastGuess(null);
+                                  setWrongAttempts(0);
+                                  setShowSolution(false);
+                                  refetch();
+                                }}
+                              >
+                                Nächste Punchline →
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Show song info when correct */}
-                  {lastGuess?.isCorrect && lastGuess.punchline && (
+                  {/* Show song info when correct or solution is shown */}
+                  {((lastGuess?.isCorrect && lastGuess.punchline) || (lastGuess?.punchline && showSolution)) && (
                     <div
                       ref={albumRef}
                       className="h-fit space-y-2 rounded-lg border p-3 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right"
@@ -433,55 +483,6 @@ export default function PlayPage() {
                           </p>
                         </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Show solution after 3 wrong attempts */}
-                  {!lastGuess?.isCorrect && lastGuess?.punchline && (
-                    <div className="space-y-3 duration-500 animate-in slide-in-from-bottom md:space-y-4">
-                      {!showSolution ? (
-                        <div className="flex flex-col items-center gap-3">
-                          <p className="text-center text-sm text-muted-foreground md:text-base">
-                            Du hast alle Versuche aufgebraucht. Möchtest du die Lösung sehen?
-                          </p>
-                          <Button
-                            size="default"
-                            variant="outline"
-                            className="md:size-lg"
-                            onClick={() => setShowSolution(true)}
-                          >
-                            Lösung anzeigen
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <Alert variant="destructive" className="py-2 md:py-4">
-                            <XCircle className="h-4 w-4" />
-                            <AlertDescription className="text-sm md:text-base">
-                              <p>
-                                Die richtige Lösung war:{" "}
-                                <span className="rounded bg-background/80 px-1.5 py-0.5 font-medium text-foreground">
-                                  &quot;{lastGuess.punchline.perfectSolution}&quot;
-                                </span>
-                              </p>
-                            </AlertDescription>
-                          </Alert>
-                          <div className="flex justify-center">
-                            <Button
-                              size="default"
-                              className="md:size-lg"
-                              onClick={() => {
-                                setLastGuess(null);
-                                setWrongAttempts(0);
-                                setShowSolution(false);
-                                refetch();
-                              }}
-                            >
-                              Nächste Punchline →
-                            </Button>
-                          </div>
-                        </>
-                      )}
                     </div>
                   )}
                 </div>
