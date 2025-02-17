@@ -2,11 +2,12 @@
 
 import { auth } from "auth";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { punchlines } from "~/server/db/schema";
 import type { songs, albums, artists } from "~/server/db/schema";
 import { requireAdmin } from "~/server/auth";
 import { db } from "~/server/db";
+import { anonymousActivity } from "~/server/db/schema";
 
 const createPunchlineSchema = z.object({
   line: z.string().min(1, "Punchline ist erforderlich"),
@@ -82,7 +83,16 @@ export async function createPunchline(formData: FormData) {
 export async function deletePunchline(id: number) {
   await requireAdmin();
 
-  await db.delete(punchlines).where(eq(punchlines.id, id));
+  // Delete wrong guesses first
+  await db.delete(anonymousActivity)
+    .where(and(
+      eq(anonymousActivity.punchlineId, id),
+      eq(anonymousActivity.type, "incorrect_guess")
+    ));
+
+  // Then delete the punchline
+  await db.delete(punchlines)
+    .where(eq(punchlines.id, id));
 }
 
 export async function updatePunchline(formData: FormData) {
@@ -110,6 +120,14 @@ export async function updatePunchline(formData: FormData) {
     throw new Error("Not authenticated");
   }
 
+  // Delete wrong guesses for this punchline
+  await db.delete(anonymousActivity)
+    .where(and(
+      eq(anonymousActivity.punchlineId, Number(id)),
+      eq(anonymousActivity.type, "incorrect_guess")
+    ));
+
+  // Update the punchline
   await db.update(punchlines)
     .set({
       line,

@@ -188,50 +188,30 @@ export default function PlayPage() {
     }
 
     try {
-      const result = await mutation.mutateAsync(formData, {
-        onError: () => false,
-        onSuccess: (data) => data.isCorrect,
-      });
-      const newWrongAttempts = result.isCorrect ? 0 : wrongAttempts + 1;
-      setWrongAttempts(newWrongAttempts);
-
-      if (newWrongAttempts >= 3 && punchline && !("allSolved" in punchline)) {
-        try {
-          // Get the full punchline to reveal the solution
-          const fullPunchline = await getFullPunchlineAfterCorrectGuess(
-            punchline.id,
-          );
-          // Show the full punchline without marking it as solved
-          setLastGuess({
-            isCorrect: false,
-            punchline: {
-              line: fullPunchline.line,
-              perfectSolution: fullPunchline.perfectSolution,
-              song: fullPunchline.song,
-            },
-          });
-          toast({
-            variant: "destructive",
-            title: "3 Versuche verbraucht",
-            description: "Du kannst dir jetzt die Lösung anzeigen lassen.",
-          });
-        } catch (error) {
-          console.error("Failed to get full punchline:", error);
-          toast({
-            title: "Fehler",
-            description: "Fehler beim Laden der Lösung.",
-            variant: "destructive",
-          });
-        }
+      const result = await mutation.mutateAsync(formData);
+      if (result.isCorrect && result.punchline && result.punchline.song) {
+        setLastGuess({
+          isCorrect: true,
+          punchline: {
+            line: result.punchline.line,
+            perfectSolution: result.punchline.perfectSolution,
+            song: {
+              name: result.punchline.song.name,
+              artist: {
+                name: result.punchline.song.artist.name
+              },
+              album: {
+                name: result.punchline.song.album.name,
+                image: result.punchline.song.album.image
+              }
+            }
+          }
+        });
       } else {
-        setLastGuess(result);
-        if (!result.isCorrect) {
-          toast({
-            variant: "destructive",
-            title: "Falsch!",
-            description: `Noch ${3 - newWrongAttempts} ${3 - newWrongAttempts === 1 ? "Versuch" : "Versuche"} übrig!`,
-          });
-        }
+        setLastGuess({
+          isCorrect: false,
+          punchline: undefined
+        });
       }
 
       if (result.isCorrect) {

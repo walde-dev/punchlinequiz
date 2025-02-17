@@ -1,10 +1,17 @@
 "use server";
-import { punchlines, solvedPunchlines, anonymousSessions, anonymousActivity } from "~/server/db/schema";
-import type { songs, artists, albums } from "~/server/db/schema";
-import { eq, sql } from "drizzle-orm";
+import {
+  punchlines,
+  solvedPunchlines,
+  anonymousSessions,
+  anonymousActivity,
+  songs,
+} from "~/server/db/schema";
+import type { artists, albums } from "~/server/db/schema";
+import { eq, sql, and } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "~/server/db";
 import { auth } from "auth";
+import { checkSolution } from "~/lib/game";
 
 type SafePunchline = Omit<
   typeof punchlines.$inferSelect,
@@ -81,14 +88,16 @@ export async function getOrCreateAnonymousSession(fingerprint: string) {
 
   if (existingSession) {
     // Update last seen
-    await db.update(anonymousSessions)
+    await db
+      .update(anonymousSessions)
       .set({ lastSeenAt: new Date() })
       .where(sql`${anonymousSessions.id} = ${existingSession.id}`);
     return existingSession;
   }
 
   // Create new session
-  const [newSession] = await db.insert(anonymousSessions)
+  const [newSession] = await db
+    .insert(anonymousSessions)
     .values({
       fingerprint,
       firstSeenAt: new Date(),
@@ -122,11 +131,13 @@ export async function getRandomPunchline() {
     // If user is logged in, exclude solved punchlines
     const result = await db.query.punchlines.findFirst({
       ...baseQuery,
-      where: session?.user ? sql`${punchlines.id} NOT IN (
+      where: session?.user
+        ? sql`${punchlines.id} NOT IN (
         SELECT punchline_id 
         FROM punchlinequiz_solved_punchline 
         WHERE user_id = ${session.user.id}
-      )` : undefined,
+      )`
+        : undefined,
       orderBy: sql`RANDOM()`,
     });
 
@@ -134,15 +145,18 @@ export async function getRandomPunchline() {
       // For logged-in users who have solved all punchlines
       if (session?.user) {
         // Get total punchline count to confirm
-        const [totalCount] = await db.select({ 
-          count: sql<number>`count(*)` 
-        }).from(punchlines);
+        const [totalCount] = await db
+          .select({
+            count: sql<number>`count(*)`,
+          })
+          .from(punchlines);
 
-        const [solvedCount] = await db.select({ 
-          count: sql<number>`count(*)` 
-        })
-        .from(solvedPunchlines)
-        .where(eq(solvedPunchlines.userId, session.user.id));
+        const [solvedCount] = await db
+          .select({
+            count: sql<number>`count(*)`,
+          })
+          .from(solvedPunchlines)
+          .where(eq(solvedPunchlines.userId, session.user.id));
 
         // If user has truly solved all punchlines
         if (totalCount?.count === solvedCount?.count) {
@@ -171,12 +185,14 @@ export async function getRandomPunchline() {
 }
 
 // Helper function to format the punchline into a safe version
-function formatSafePunchline(punchline: typeof punchlines.$inferSelect & {
-  song: typeof songs.$inferSelect & {
-    artist: typeof artists.$inferSelect;
-    album: typeof albums.$inferSelect;
-  };
-}): SafePunchline {
+function formatSafePunchline(
+  punchline: typeof punchlines.$inferSelect & {
+    song: typeof songs.$inferSelect & {
+      artist: typeof artists.$inferSelect;
+      album: typeof albums.$inferSelect;
+    };
+  },
+): SafePunchline {
   return {
     id: punchline.id,
     line: hideSolution(punchline.line),
@@ -230,83 +246,83 @@ const validateGuessSchema = z.object({
   guess: z.string().min(1, "Guess is required"),
 });
 
-export async function validateGuess(formData: FormData) {
-  const session = await auth();
-  const fingerprint = formData.get("fingerprint") as string;
-  const parsed = validateGuessSchema.parse({
-    punchlineId: Number(formData.get("punchlineId")),
-    guess: formData.get("guess"),
+export async function validateGuess(data: FormData) {
+  const punchlineId = data.get("punchlineId");
+  const guess = data.get("guess");
+  const fingerprint = data.get("fingerprint");
+
+  if (!punchlineId || !guess) {
+    throw new Error("Missing required fields");
+  }
+
+  const punchline = await db.query.punchlines.findFirst({
+    where: eq(punchlines.id, Number(punchlineId)),
   });
 
-  try {
-    const punchline = await db.query.punchlines.findFirst({
-      where: eq(punchlines.id, parsed.punchlineId),
-      with: {
-        song: {
+  if (!punchline) {
+    throw new Error("Punchline not found");
+  }
+
+  const isCorrect = checkSolution(guess.toString(), punchline.perfectSolution);
+
+  // Track the activity
+  if (fingerprint) {
+    const session = await getOrCreateAnonymousSession(fingerprint.toString());
+
+    await db.insert(anonymousActivity).values({
+      sessionId: session.id,
+      type: isCorrect ? "correct_guess" : "incorrect_guess",
+      punchlineId: punchline.id,
+      guess: guess.toString(),
+      timestamp: new Date(),
+    });
+  }
+
+  if (isCorrect) {
+    const session = await auth();
+    if (session?.user) {
+      // Check if user has already solved this punchline
+      const existingSolve = await db
+        .select()
+        .from(solvedPunchlines)
+        .where(
+          and(
+            eq(solvedPunchlines.userId, session.user.id),
+            eq(solvedPunchlines.punchlineId, punchline.id),
+          ),
+        )
+        .limit(1);
+
+      if (existingSolve.length === 0) {
+        // Record the solve
+        await db.insert(solvedPunchlines).values({
+          userId: session.user.id,
+          punchlineId: punchline.id,
+          solution: guess.toString(),
+          solvedAt: new Date(),
+        });
+      }
+    }
+
+    return {
+      isCorrect: true,
+      punchline: {
+        line: punchline.line,
+        perfectSolution: punchline.perfectSolution,
+        song: await db.query.songs.findFirst({
+          where: eq(songs.id, punchline.songId),
           with: {
             artist: true,
             album: true,
           },
-        },
+        }),
       },
-    });
-
-    if (!punchline) {
-      throw new Error("Punchline not found");
-    }
-
-    const acceptableSolutions = JSON.parse(
-      punchline.acceptableSolutions,
-    ) as string[];
-    const normalizedGuess = normalizeText(parsed.guess);
-    const isCorrect = acceptableSolutions.some(
-      (solution) => normalizeText(solution) === normalizedGuess,
-    );
-
-    // Track activity for anonymous users
-    if (!session?.user && fingerprint) {
-      const anonymousSession = await getOrCreateAnonymousSession(fingerprint);
-
-      // Record the guess attempt
-      await db.insert(anonymousActivity).values({
-        sessionId: anonymousSession.id,
-        type: isCorrect ? "correct_guess" : "incorrect_guess",
-        punchlineId: punchline.id,
-        guess: parsed.guess,
-      });
-
-      // Update session stats
-      await db.update(anonymousSessions)
-        .set({
-          totalPlays: sql`${anonymousSessions.totalPlays} + 1`,
-          correctGuesses: sql`${anonymousSessions.correctGuesses} + ${isCorrect ? 1 : 0}`,
-        })
-        .where(sql`${anonymousSessions.id} = ${anonymousSession.id}`);
-    }
-
-    if (isCorrect && session?.user) {
-      // Record the successful attempt for logged-in users
-      await db.insert(solvedPunchlines).values({
-        userId: session.user.id,
-        punchlineId: punchline.id,
-        solution: parsed.guess,
-      }).onConflictDoNothing();
-    }
-
-    if (isCorrect) {
-      return {
-        isCorrect: true,
-        punchline: punchline as FullPunchline,
-      };
-    }
-
-    return {
-      isCorrect: false,
     };
-  } catch (error) {
-    console.error("Failed to validate guess:", error);
-    throw new Error("Failed to validate guess");
   }
+
+  return {
+    isCorrect: false,
+  };
 }
 
 export async function startNewGame(fingerprint: string) {

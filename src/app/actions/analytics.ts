@@ -1,8 +1,14 @@
 "use server";
 
-import { sql } from "drizzle-orm";
+import { sql, and, eq } from "drizzle-orm";
 import { db } from "~/server/db";
-import { punchlines, solvedPunchlines, users, anonymousSessions, anonymousActivity } from "~/server/db/schema";
+import {
+  punchlines,
+  solvedPunchlines,
+  users,
+  anonymousSessions,
+  anonymousActivity,
+} from "~/server/db/schema";
 import { requireAdmin } from "~/server/auth";
 
 export type PunchlineAnalytics = {
@@ -19,15 +25,21 @@ export type PunchlineAnalytics = {
     solvedAt: Date;
     solution: string;
   }[];
+  wrongGuesses: {
+    guess: string;
+    count: number;
+    timestamp: Date;
+  }[];
 };
 
 export async function getPunchlineAnalytics() {
   await requireAdmin();
 
   // Get total number of users for percentage calculation
-  const totalUsers = await db.select({ count: sql<number>`count(*)` })
+  const totalUsers = await db
+    .select({ count: sql<number>`count(*)` })
     .from(users)
-    .then(result => result[0]?.count ?? 0);
+    .then((result) => result[0]?.count ?? 0);
 
   // Get all punchlines with their solve counts and user details
   const result = await db.query.punchlines.findMany({
@@ -45,7 +57,47 @@ export async function getPunchlineAnalytics() {
     },
   });
 
-  return result.map(punchline => ({
+  // Get wrong guesses for each punchline
+  const wrongGuesses = await db
+    .select({
+      punchlineId: anonymousActivity.punchlineId,
+      guess: anonymousActivity.guess,
+      timestamp: anonymousActivity.timestamp,
+    })
+    .from(anonymousActivity)
+    .where(
+      sql`${anonymousActivity.type} = 'incorrect_guess' AND ${anonymousActivity.punchlineId} IS NOT NULL`,
+    );
+
+  // Group wrong guesses by punchline and guess
+  const wrongGuessesByPunchline = wrongGuesses.reduce(
+    (acc, { punchlineId, guess, timestamp }) => {
+      if (!punchlineId || !guess) return acc;
+
+      if (!acc[punchlineId]) {
+        acc[punchlineId] = new Map();
+      }
+
+      const guessCount = acc[punchlineId].get(guess) || {
+        count: 0,
+        timestamp: new Date(timestamp),
+      };
+      acc[punchlineId].set(guess, {
+        count: guessCount.count + 1,
+        timestamp: new Date(
+          Math.max(
+            guessCount.timestamp.getTime(),
+            new Date(timestamp).getTime(),
+          ),
+        ),
+      });
+
+      return acc;
+    },
+    {} as Record<number, Map<string, { count: number; timestamp: Date }>>,
+  );
+
+  return result.map((punchline) => ({
     id: punchline.id,
     line: punchline.line,
     song: {
@@ -53,16 +105,26 @@ export async function getPunchlineAnalytics() {
       artist: punchline.song.artist.name,
     },
     totalSolves: punchline.solvedBy.length,
-    solvePercentage: totalUsers > 0 ? (punchline.solvedBy.length / totalUsers) * 100 : 0,
-    solvedBy: punchline.solvedBy.map(solve => ({
+    solvePercentage:
+      totalUsers > 0 ? (punchline.solvedBy.length / totalUsers) * 100 : 0,
+    solvedBy: punchline.solvedBy.map((solve) => ({
       id: solve.user.id,
       name: solve.user.name,
       email: solve.user.email,
       image: solve.user.image,
       isAdmin: solve.user.isAdmin ?? false,
-      solvedAt: new Date(solve.solvedAt), // Just create a new Date from the timestamp
+      solvedAt: new Date(solve.solvedAt),
       solution: solve.solution,
     })),
+    wrongGuesses: wrongGuessesByPunchline[punchline.id]
+      ? Array.from(wrongGuessesByPunchline[punchline.id]!.entries())
+          .map(([guess, { count, timestamp }]) => ({
+            guess,
+            count,
+            timestamp,
+          }))
+          .sort((a, b) => b.count - a.count)
+      : [],
   }));
 }
 
@@ -94,21 +156,26 @@ export async function getOverallStats(timeSpan: TimeSpan = "24h") {
 
   // Previous period stats
   const [prevUsers, prevPunchlines, prevSolves] = await Promise.all([
-    db.select({ 
-      count: sql<number>`count(*)` 
-    })
-    .from(users)
-    .where(sql`${users.emailVerified} < ${compareDate.getTime() / 1000}`),
-    db.select({ 
-      count: sql<number>`count(*)` 
-    })
-    .from(punchlines)
-    .where(sql`${punchlines.createdAt} < ${compareDate.getTime() / 1000}`),
-    db.select({ 
-      count: sql<number>`count(*)` 
-    })
-    .from(solvedPunchlines)
-    .where(sql`${solvedPunchlines.solvedAt} < ${compareDate.getTime() / 1000}`),
+    db
+      .select({
+        count: sql<number>`count(*)`,
+      })
+      .from(users)
+      .where(sql`${users.emailVerified} < ${compareDate.getTime() / 1000}`),
+    db
+      .select({
+        count: sql<number>`count(*)`,
+      })
+      .from(punchlines)
+      .where(sql`${punchlines.createdAt} < ${compareDate.getTime() / 1000}`),
+    db
+      .select({
+        count: sql<number>`count(*)`,
+      })
+      .from(solvedPunchlines)
+      .where(
+        sql`${solvedPunchlines.solvedAt} < ${compareDate.getTime() / 1000}`,
+      ),
   ]);
 
   const totalUsers = currentUsers[0]?.count ?? 0;
@@ -130,14 +197,15 @@ export async function getOverallStats(timeSpan: TimeSpan = "24h") {
     totalPunchlines,
     totalSolves,
     averageSolvesPerUser: totalUsers > 0 ? totalSolves / totalUsers : 0,
-    averageSolvesPerPunchline: totalPunchlines > 0 ? totalSolves / totalPunchlines : 0,
+    averageSolvesPerPunchline:
+      totalPunchlines > 0 ? totalSolves / totalPunchlines : 0,
     changes: {
       users: calculateChange(totalUsers, prevTotalUsers),
       punchlines: calculateChange(totalPunchlines, prevTotalPunchlines),
       solves: calculateChange(totalSolves, prevTotalSolves),
       average: calculateChange(
         totalUsers > 0 ? totalSolves / totalUsers : 0,
-        prevTotalUsers > 0 ? prevTotalSolves / prevTotalUsers : 0
+        prevTotalUsers > 0 ? prevTotalSolves / prevTotalUsers : 0,
       ),
     },
   };
@@ -187,20 +255,28 @@ export async function getAnonymousStats(timeSpan: TimeSpan = "24h") {
   // Get total sessions and active sessions
   const [totalSessions, activeSessions] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(anonymousSessions),
-    db.select({ count: sql<number>`count(*)` })
+    db
+      .select({ count: sql<number>`count(*)` })
       .from(anonymousSessions)
-      .where(sql`${anonymousSessions.lastSeenAt} >= ${compareDate.getTime() / 1000}`),
+      .where(
+        sql`${anonymousSessions.lastSeenAt} >= ${compareDate.getTime() / 1000}`,
+      ),
   ]);
 
   // Get conversion stats
-  const conversions = await db.select({ count: sql<number>`count(*)` })
+  const conversions = await db
+    .select({ count: sql<number>`count(*)` })
     .from(anonymousSessions)
     .where(sql`${anonymousSessions.convertedToUser} is not null`);
 
   // Get total plays and correct guesses
   const [totalPlays, correctGuesses] = await Promise.all([
-    db.select({ sum: sql<number>`sum(${anonymousSessions.totalPlays})` }).from(anonymousSessions),
-    db.select({ sum: sql<number>`sum(${anonymousSessions.correctGuesses})` }).from(anonymousSessions),
+    db
+      .select({ sum: sql<number>`sum(${anonymousSessions.totalPlays})` })
+      .from(anonymousSessions),
+    db
+      .select({ sum: sql<number>`sum(${anonymousSessions.correctGuesses})` })
+      .from(anonymousSessions),
   ]);
 
   // Get recent activity
@@ -232,20 +308,33 @@ export async function getAnonymousStats(timeSpan: TimeSpan = "24h") {
     totalPlays: plays,
     averagePlaysPerSession: total > 0 ? plays / total : 0,
     correctGuessRate: plays > 0 ? (correct / plays) * 100 : 0,
-    recentActivity: recentActivity.map(session => ({
+    recentActivity: recentActivity.map((session) => ({
       id: session.id,
       fingerprint: session.fingerprint,
       lastSeenAt: new Date(session.lastSeenAt),
       totalPlays: session.totalPlays,
       correctGuesses: session.correctGuesses,
-      activities: session.activities.map(activity => ({
+      activities: session.activities.map((activity) => ({
         type: activity.type,
         guess: activity.guess ?? undefined,
         timestamp: new Date(activity.timestamp),
-        punchline: activity.punchline ? {
-          line: activity.punchline.line,
-        } : undefined,
+        punchline: activity.punchline
+          ? {
+              line: activity.punchline.line,
+            }
+          : undefined,
       })),
     })),
   };
-} 
+}
+
+export async function deleteWrongGuess(punchlineId: number, guess: string) {
+  await requireAdmin();
+
+  await db.delete(anonymousActivity)
+    .where(and(
+      eq(anonymousActivity.punchlineId, punchlineId),
+      eq(anonymousActivity.type, "incorrect_guess"),
+      eq(anonymousActivity.guess, guess)
+    ));
+}
