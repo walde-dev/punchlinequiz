@@ -45,7 +45,6 @@ import { useState } from "react";
 import { cn } from "~/lib/utils";
 import React from "react";
 import { type TimeSpan } from "../actions/analytics";
-
 function StatCard({ 
   title, 
   value, 
@@ -328,7 +327,7 @@ export default function Analytics() {
         />
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-8 m">
         <Card>
           <CardHeader>
             <CardTitle>Punchline Statistiken</CardTitle>

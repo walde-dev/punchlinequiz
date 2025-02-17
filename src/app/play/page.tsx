@@ -57,6 +57,38 @@ function formatPunchlineText(text: string) {
   ));
 }
 
+function WinningScreen() {
+  return (
+    <Card className="md:p-2">
+      <CardHeader className="px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-6">
+        <CardTitle className="text-center text-2xl md:text-4xl">
+          🎉 Glückwunsch! 🎉
+        </CardTitle>
+        <CardDescription className="text-center text-base md:text-lg">
+          Du hast alle verfügbaren Punchlines gelöst!
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6 px-4 text-center md:px-6">
+        <div className="space-y-4">
+          <p className="text-lg font-medium">Du bist ein wahrer Rap-Experte!</p>
+          <p className="text-muted-foreground">
+            Wir arbeiten bereits an neuen Punchlines für dich. Schau bald wieder
+            vorbei!
+          </p>
+        </div>
+        <div className="flex justify-center">
+          <Button
+            asChild
+            className="bg-green-600 text-white hover:bg-green-700"
+          >
+            <a href="/">Zurück zur Startseite</a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PlayPage() {
   const formRef = useRef<HTMLFormElement>(null);
   const albumRef = useRef<HTMLDivElement>(null);
@@ -250,6 +282,16 @@ export default function PlayPage() {
     );
   }
 
+  if (punchline && "allSolved" in punchline) {
+    return (
+      <div className="flex items-center justify-center px-2 md:px-4">
+        <div className="w-full max-w-3xl">
+          <WinningScreen />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {showConfetti && (
@@ -264,7 +306,9 @@ export default function PlayPage() {
         <div className="w-full">
           <Card className="md:p-2">
             <CardHeader className="px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-6">
-              <CardTitle className="text-lg md:text-2xl">Errate die fehlenden Wörter</CardTitle>
+              <CardTitle className="text-lg md:text-2xl">
+                Errate die fehlenden Wörter
+              </CardTitle>
               <CardDescription className="text-sm">
                 Rate die fehlenden Wörter in der Punchline
               </CardDescription>
@@ -308,7 +352,7 @@ export default function PlayPage() {
                         <div className="flex justify-center">
                           <Button
                             size="default"
-                            className="bg-green-600 text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl md:size-lg"
+                            className="md:size-lg bg-green-600 text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl"
                             onClick={() => {
                               setLastGuess(null);
                               refetch();
@@ -325,7 +369,9 @@ export default function PlayPage() {
                       ref={albumRef}
                       className="h-fit space-y-2 rounded-lg border p-3 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right"
                     >
-                      <h3 className="text-sm font-semibold md:text-base">Song:</h3>
+                      <h3 className="text-sm font-semibold md:text-base">
+                        Song:
+                      </h3>
                       <div className="space-y-3 md:space-y-4">
                         {lastGuess.punchline.song.album.image && (
                           <div className="relative mx-auto aspect-square w-32 overflow-hidden rounded-md md:mx-0 md:w-full">
@@ -373,7 +419,9 @@ export default function PlayPage() {
                       }
                       required
                       disabled={
-                        isPunchlineLoading || mutation.isPending || lastGuess?.isCorrect
+                        isPunchlineLoading ||
+                        mutation.isPending ||
+                        lastGuess?.isCorrect
                       }
                       autoComplete="off"
                       className="text-sm md:text-base"
@@ -381,7 +429,9 @@ export default function PlayPage() {
                     <Button
                       type="submit"
                       disabled={
-                        isPunchlineLoading || mutation.isPending || lastGuess?.isCorrect
+                        isPunchlineLoading ||
+                        mutation.isPending ||
+                        lastGuess?.isCorrect
                       }
                       className="text-sm md:text-base"
                     >
@@ -393,7 +443,10 @@ export default function PlayPage() {
                     </Button>
                   </div>
                   {lastGuess && !lastGuess.isCorrect && (
-                    <Alert variant="destructive" className="py-2 text-sm md:py-4 md:text-base">
+                    <Alert
+                      variant="destructive"
+                      className="py-2 text-sm md:py-4 md:text-base"
+                    >
                       <XCircle className="h-4 w-4" />
                       <AlertTitle>Falsch</AlertTitle>
                       <AlertDescription>

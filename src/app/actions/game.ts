@@ -1,5 +1,5 @@
 "use server";
-import { punchlines, solvedPunchlines, anonymousSessions, anonymousActivity } from "~/server/db/schema";
+import { punchlines, solvedPunchlines, anonymousSessions, anonymousActivity, songs, artists, albums } from "~/server/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "~/server/db";
@@ -104,50 +104,99 @@ async function getOrCreateAnonymousSession(fingerprint: string) {
 
 export async function getRandomPunchline() {
   try {
-    const result = await db.query.punchlines.findFirst({
+    const session = await auth();
+
+    // Base query to get a random punchline
+    const baseQuery = {
       with: {
         song: {
           with: {
-            artist: true,
-            album: true,
+            artist: true as const,
+            album: true as const,
           },
         },
       },
+    } as const;
+
+    // If user is logged in, exclude solved punchlines
+    const result = await db.query.punchlines.findFirst({
+      ...baseQuery,
+      where: session?.user ? sql`${punchlines.id} NOT IN (
+        SELECT punchline_id 
+        FROM punchlinequiz_solved_punchline 
+        WHERE user_id = ${session.user.id}
+      )` : undefined,
       orderBy: sql`RANDOM()`,
     });
 
     if (!result) {
-      throw new Error("No punchlines found");
+      // For logged-in users who have solved all punchlines
+      if (session?.user) {
+        // Get total punchline count to confirm
+        const [totalCount] = await db.select({ 
+          count: sql<number>`count(*)` 
+        }).from(punchlines);
+
+        const [solvedCount] = await db.select({ 
+          count: sql<number>`count(*)` 
+        })
+        .from(solvedPunchlines)
+        .where(eq(solvedPunchlines.userId, session.user.id));
+
+        // If user has truly solved all punchlines
+        if (totalCount?.count === solvedCount?.count) {
+          return { allSolved: true as const };
+        }
+      }
+
+      // If no unsolved punchlines found, return a random one from all punchlines
+      const anyPunchline = await db.query.punchlines.findFirst({
+        ...baseQuery,
+        orderBy: sql`RANDOM()`,
+      });
+
+      if (!anyPunchline) {
+        throw new Error("No punchlines found");
+      }
+
+      return formatSafePunchline(anyPunchline);
     }
 
-    // Return a safe version without solutions
-    const safePunchline: SafePunchline = {
-      id: result.id,
-      line: hideSolution(result.line),
-      songId: result.songId,
-      createdById: result.createdById,
-      createdAt: result.createdAt,
-      updatedAt: result.updatedAt,
-      song: {
-        id: result.song.id,
-        name: result.song.name,
-        artist: {
-          id: result.song.artist.id,
-          name: result.song.artist.name,
-        },
-        album: {
-          id: result.song.album.id,
-          name: result.song.album.name,
-          image: result.song.album.image,
-        },
-      },
-    };
-
-    return safePunchline;
+    return formatSafePunchline(result);
   } catch (error) {
     console.error("Failed to fetch random punchline:", error);
     throw new Error("Failed to fetch random punchline");
   }
+}
+
+// Helper function to format the punchline into a safe version
+function formatSafePunchline(punchline: typeof punchlines.$inferSelect & {
+  song: typeof songs.$inferSelect & {
+    artist: typeof artists.$inferSelect;
+    album: typeof albums.$inferSelect;
+  };
+}): SafePunchline {
+  return {
+    id: punchline.id,
+    line: hideSolution(punchline.line),
+    songId: punchline.songId,
+    createdById: punchline.createdById,
+    createdAt: punchline.createdAt,
+    updatedAt: punchline.updatedAt,
+    song: {
+      id: punchline.song.id,
+      name: punchline.song.name,
+      artist: {
+        id: punchline.song.artist.id,
+        name: punchline.song.artist.name,
+      },
+      album: {
+        id: punchline.song.album.id,
+        name: punchline.song.album.name,
+        image: punchline.song.album.image,
+      },
+    },
+  };
 }
 
 export async function getFullPunchlineAfterCorrectGuess(punchlineId: number) {
