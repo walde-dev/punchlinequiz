@@ -60,7 +60,7 @@ export async function getPunchlineAnalytics() {
       email: solve.user.email,
       image: solve.user.image,
       isAdmin: solve.user.isAdmin ?? false,
-      solvedAt: new Date(solve.solvedAt * 1000), // Convert Unix timestamp to Date
+      solvedAt: new Date(solve.solvedAt), // Just create a new Date from the timestamp
       solution: solve.solution,
     })),
   }));
