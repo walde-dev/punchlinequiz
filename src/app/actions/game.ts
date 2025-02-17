@@ -73,7 +73,7 @@ function normalizeText(text: string): string {
   return normalizedText;
 }
 
-async function getOrCreateAnonymousSession(fingerprint: string) {
+export async function getOrCreateAnonymousSession(fingerprint: string) {
   // Try to find an existing session
   const existingSession = await db.query.anonymousSessions.findFirst({
     where: sql`${anonymousSessions.fingerprint} = ${fingerprint}`,

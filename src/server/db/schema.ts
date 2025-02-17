@@ -284,7 +284,7 @@ export const anonymousActivity = createTable(
     sessionId: text("session_id")
       .notNull()
       .references(() => anonymousSessions.id),
-    type: text("type", { enum: ["play", "correct_guess", "incorrect_guess"] }).notNull(),
+    type: text("type", { enum: ["play", "correct_guess", "incorrect_guess", "oauth_click"] }).notNull(),
     punchlineId: int("punchline_id").references(() => punchlines.id),
     guess: text("guess"),
     timestamp: int("timestamp", { mode: "timestamp" })

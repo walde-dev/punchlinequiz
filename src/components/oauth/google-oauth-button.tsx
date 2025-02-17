@@ -3,6 +3,8 @@
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "../ui/button";
+import { useFingerprint } from "~/app/hooks/useFingerprint";
+import { getOrCreateAnonymousSession } from "~/app/actions/game";
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -37,10 +39,28 @@ export default function GoogleOAuthButton({
   callbackUrl,
 }: GoogleOAuthButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const { fingerprint } = useFingerprint();
 
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
+
+      // Track OAuth click if we have a fingerprint
+      if (fingerprint) {
+        try {
+          const anonymousSession = await getOrCreateAnonymousSession(fingerprint);
+          const formData = new FormData();
+          formData.append("fingerprint", fingerprint);
+          formData.append("type", "oauth_click");
+          await fetch("/api/track", {
+            method: "POST",
+            body: formData,
+          });
+        } catch (error) {
+          console.error("Failed to track OAuth click:", error);
+        }
+      }
+
       await signIn("google", { callbackUrl: callbackUrl ?? "/" });
     } catch (error) {
       console.error("Sign in error:", error);

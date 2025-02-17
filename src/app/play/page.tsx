@@ -2,8 +2,10 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useRandomPunchline, useValidateGuess } from "../hooks/useGame";
+import { getFullPunchlineAfterCorrectGuess } from "../actions/game";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -15,7 +17,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useToast } from "~/components/ui/use-toast";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Send, RefreshCw } from "lucide-react";
 import { useSession } from "next-auth/react";
 import AuthDialog from "~/components/auth/auth-dialog";
 import ReactConfetti from "react-confetti";
@@ -108,6 +110,7 @@ export default function PlayPage() {
   const [lastGuess, setLastGuess] = useState<GuessResult | null>(null);
   const [playCount, setPlayCount] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [wrongAttempts, setWrongAttempts] = useState(0);
   const { width, height } = useWindowSize();
 
   // Initialize play count from localStorage on mount
@@ -161,7 +164,7 @@ export default function PlayPage() {
     }
   }, [lastGuess?.isCorrect]);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const handleGuess = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     // Check if user has exceeded free plays
@@ -176,27 +179,65 @@ export default function PlayPage() {
       return;
     }
 
-    const formData = new FormData(e.currentTarget);
+    if (!formRef.current) return;
+
+    const formData = new FormData(formRef.current);
     if (fingerprint) {
       formData.append("fingerprint", fingerprint);
     }
 
     try {
       const result = await mutation.mutateAsync(formData, {
-        // Prevent refetching the punchline query on error
         onError: () => false,
-        // Only refetch on success
         onSuccess: (data) => data.isCorrect,
       });
-      setLastGuess(result);
+      const newWrongAttempts = result.isCorrect ? 0 : wrongAttempts + 1;
+      setWrongAttempts(newWrongAttempts);
+
+      if (newWrongAttempts >= 3 && punchline && !("allSolved" in punchline)) {
+        try {
+          // Get the full punchline to reveal the solution
+          const fullPunchline = await getFullPunchlineAfterCorrectGuess(
+            punchline.id,
+          );
+          // Show the full punchline without marking it as solved
+          setLastGuess({
+            isCorrect: false,
+            punchline: {
+              line: fullPunchline.line,
+              perfectSolution: fullPunchline.perfectSolution,
+              song: fullPunchline.song,
+            },
+          });
+          toast({
+            variant: "destructive",
+            title: "3 Versuche verbraucht",
+            description: "Die richtige Lösung wird angezeigt.",
+          });
+        } catch (error) {
+          console.error("Failed to get full punchline:", error);
+          toast({
+            title: "Fehler",
+            description: "Fehler beim Laden der Lösung.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        setLastGuess(result);
+        if (!result.isCorrect) {
+          toast({
+            variant: "destructive",
+            title: "Falsch!",
+            description: `Noch ${3 - newWrongAttempts} ${3 - newWrongAttempts === 1 ? "Versuch" : "Versuche"} übrig!`,
+          });
+        }
+      }
 
       if (result.isCorrect) {
-        // Show confetti
+        setWrongAttempts(0); // Reset wrong attempts on correct guess
         setShowConfetti(true);
-        // Hide confetti after 5 seconds
         setTimeout(() => setShowConfetti(false), 5000);
 
-        // Increment play count only on correct guesses
         if (!session) {
           const newCount = playCount + 1;
           setPlayCount(newCount);
@@ -211,27 +252,19 @@ export default function PlayPage() {
 
         toast({
           title: "Richtig!",
-          description: `Die perfekte Lösung war: "${result.punchline?.perfectSolution}"`,
+          description: "Gut gemacht!",
         });
         formRef.current?.reset();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Leider falsch",
-          description: "Versuche es noch einmal!",
-        });
       }
     } catch (error) {
+      console.error("Failed to validate guess:", error);
       toast({
-        variant: "destructive",
         title: "Fehler",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+        description: "Fehler beim Validieren der Antwort.",
+        variant: "destructive",
       });
     }
-  }
+  };
 
   // Show auth prompt if user has exceeded free plays and session is not loading
   if (status !== "loading" && !session && playCount >= MAX_FREE_PLAYS) {
@@ -325,20 +358,22 @@ export default function PlayPage() {
                 <div
                   className={`grid gap-4 md:gap-6 ${lastGuess?.isCorrect ? "grid-cols-1 md:grid-cols-[1fr,300px]" : "grid-cols-1"}`}
                 >
-                  <div className="space-y-4 md:space-y-6">
-                    <div className="flex flex-col items-center space-y-2 text-center md:space-y-4">
-                      <h3 className="text-sm font-medium text-muted-foreground md:text-base">
-                        Punchline:
-                      </h3>
-                      <p className="text-xl font-bold leading-normal md:text-4xl">
-                        {formatPunchlineText(
-                          lastGuess?.isCorrect && lastGuess.punchline
-                            ? lastGuess.punchline.line
-                            : (punchline?.line ?? ""),
-                        )}
-                      </p>
-                    </div>
-                    {lastGuess?.isCorrect && lastGuess.punchline && (
+                  <div className="space-y-6">
+                    <h3 className="text-sm font-medium text-muted-foreground md:text-base">
+                      Punchline:
+                    </h3>
+                    <p className="text-xl font-bold leading-normal md:text-4xl">
+                      {formatPunchlineText(
+                        lastGuess?.punchline
+                          ? lastGuess.punchline.line
+                          : (punchline?.line ?? ""),
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Show success message and song info when correct */}
+                  {lastGuess?.isCorrect && lastGuess.punchline && (
+                    <>
                       <div className="space-y-3 duration-500 animate-in slide-in-from-bottom md:space-y-4">
                         <Alert className="py-2 md:py-4">
                           <CheckCircle2 className="h-4 w-4" />
@@ -363,37 +398,66 @@ export default function PlayPage() {
                           </Button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                  {lastGuess?.isCorrect && lastGuess.punchline && (
-                    <div
-                      ref={albumRef}
-                      className="h-fit space-y-2 rounded-lg border p-3 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right"
-                    >
-                      <h3 className="text-sm font-semibold md:text-base">
-                        Song:
-                      </h3>
-                      <div className="space-y-3 md:space-y-4">
-                        {lastGuess.punchline.song.album.image && (
-                          <div className="relative mx-auto aspect-square w-32 overflow-hidden rounded-md md:mx-0 md:w-full">
-                            <img
-                              src={lastGuess.punchline.song.album.image}
-                              alt={`${lastGuess.punchline.song.album.name} Cover`}
-                              className="object-cover"
-                            />
+
+                      <div
+                        ref={albumRef}
+                        className="h-fit space-y-2 rounded-lg border p-3 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right"
+                      >
+                        <h3 className="text-sm font-semibold md:text-base">
+                          Song:
+                        </h3>
+                        <div className="space-y-3 md:space-y-4">
+                          {lastGuess.punchline.song.album.image && (
+                            <div className="relative mx-auto aspect-square w-32 overflow-hidden rounded-md md:mx-0 md:w-full">
+                              <img
+                                src={lastGuess.punchline.song.album.image}
+                                alt={`${lastGuess.punchline.song.album.name} Cover`}
+                                className="object-cover"
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-medium md:text-base">
+                              {lastGuess.punchline.song.name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {lastGuess.punchline.song.artist.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground md:text-sm">
+                              Album: {lastGuess.punchline.song.album.name}
+                            </p>
                           </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-medium md:text-base">
-                            {lastGuess.punchline.song.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {lastGuess.punchline.song.artist.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground md:text-sm">
-                            Album: {lastGuess.punchline.song.album.name}
-                          </p>
                         </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Show solution after 3 wrong attempts */}
+                  {!lastGuess?.isCorrect && lastGuess?.punchline && (
+                    <div className="space-y-3 duration-500 animate-in slide-in-from-bottom md:space-y-4">
+                      <Alert variant="destructive" className="py-2 md:py-4">
+                        <XCircle className="h-4 w-4" />
+                        <AlertTitle>Falsch!</AlertTitle>
+                        <AlertDescription className="text-sm md:text-base">
+                          <p>
+                            Die richtige Lösung war:{" "}
+                            <span className="rounded bg-background/80 px-1.5 py-0.5 font-medium text-foreground">
+                              &quot;{lastGuess.punchline.perfectSolution}&quot;
+                            </span>
+                          </p>
+                        </AlertDescription>
+                      </Alert>
+                      <div className="flex justify-center">
+                        <Button
+                          size="default"
+                          className="md:size-lg"
+                          onClick={() => {
+                            setLastGuess(null);
+                            refetch();
+                          }}
+                        >
+                          Nächste Punchline →
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -403,7 +467,7 @@ export default function PlayPage() {
             {!lastGuess?.isCorrect && (
               <CardFooter className="px-4 pb-4 md:px-6 md:pb-6">
                 <form
-                  onSubmit={handleSubmit}
+                  onSubmit={handleGuess}
                   ref={formRef}
                   className="w-full space-y-3 md:space-y-4"
                 >
@@ -412,8 +476,8 @@ export default function PlayPage() {
                     name="punchlineId"
                     value={punchline?.id ?? ""}
                   />
-                  <div className="space-y-2 md:space-y-0 md:flex md:gap-2 md:items-center">
-                    <Input
+                  <div className="space-y-2 md:flex md:flex-col md:gap-2 md:space-y-0">
+                    <Textarea
                       name="guess"
                       placeholder={
                         lastGuess?.isCorrect ? "" : "Deine Lösung..."
@@ -422,21 +486,30 @@ export default function PlayPage() {
                       disabled={
                         isPunchlineLoading ||
                         mutation.isPending ||
-                        lastGuess?.isCorrect
+                        lastGuess?.isCorrect ||
+                        wrongAttempts >= 3
                       }
                       autoComplete="off"
-                      className="text-sm md:text-base w-full"
+                      className="w-full min-h-[80px] resize-none text-sm md:text-base"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          formRef.current?.requestSubmit();
+                        }
+                      }}
                     />
-                    <div className="flex gap-2 md:w-auto md:min-w-[300px]">
+                    <div className="flex gap-2 md:self-end md:w-auto md:min-w-[300px]">
                       <Button
                         type="submit"
                         disabled={
                           isPunchlineLoading ||
                           mutation.isPending ||
-                          lastGuess?.isCorrect
+                          lastGuess?.isCorrect ||
+                          wrongAttempts >= 3
                         }
-                        className="text-sm md:text-base flex-1"
+                        className="flex-1 text-sm md:text-base"
                       >
+                        <Send className="mr-2 h-4 w-4" />
                         {mutation.isPending
                           ? "Prüfe..."
                           : lastGuess?.isCorrect
@@ -449,27 +522,34 @@ export default function PlayPage() {
                         disabled={isPunchlineLoading || isFetching}
                         onClick={() => {
                           setLastGuess(null);
+                          setWrongAttempts(0);
                           refetch();
                         }}
-                        className="text-sm md:text-base flex-1"
+                        className="flex-1 text-sm md:text-base"
                       >
-                        {isPunchlineLoading || isFetching ? "Lade..." : "Neue Punchline"}
+                        <RefreshCw className={`mr-2 h-4 w-4 ${(isPunchlineLoading || isFetching) ? "animate-spin" : ""}`} />
+                        {isPunchlineLoading || isFetching
+                          ? "Lade..."
+                          : "Neue Punchline"}
                       </Button>
                     </div>
                   </div>
-                  {lastGuess && !lastGuess.isCorrect && (
-                    <Alert
-                      variant="destructive"
-                      className="py-2 text-sm md:py-4 md:text-base"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      <AlertTitle>Falsch</AlertTitle>
-                      <AlertDescription>
-                        Das war leider nicht die richtige Lösung. Versuche es
-                        noch einmal!
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                  {lastGuess &&
+                    !lastGuess.isCorrect &&
+                    !(!lastGuess?.isCorrect && lastGuess?.punchline) && (
+                      <Alert
+                        variant="destructive"
+                        className="py-2 text-sm md:py-4 md:text-base"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        <AlertTitle>Falsch</AlertTitle>
+                        <AlertDescription>
+                          {wrongAttempts >= 3
+                            ? "Die richtige Lösung wurde aufgedeckt. Versuche eine neue Punchline!"
+                            : `Das war leider nicht die richtige Lösung. Noch ${3 - wrongAttempts} ${3 - wrongAttempts === 1 ? "Versuch" : "Versuche"} übrig!`}
+                        </AlertDescription>
+                      </Alert>
+                    )}
                 </form>
               </CardFooter>
             )}

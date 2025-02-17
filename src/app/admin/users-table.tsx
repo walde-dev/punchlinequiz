@@ -156,9 +156,9 @@ function AnonymousUsersCard() {
           Statistiken über nicht angemeldete Benutzer
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary hover:scrollbar-thumb-primary/80">
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 sticky top-0 bg-background pt-2 pb-4 border-b">
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Aktive Sessions</p>
             <p className="text-2xl font-bold">{stats.activeSessions}</p>
@@ -203,7 +203,9 @@ function AnonymousUsersCard() {
                 </div>
                 {session.activities.length > 0 && (
                   <div className="mt-2 space-y-2">
-                    {session.activities.map((activity, index) => (
+                    {[...session.activities]
+                      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+                      .map((activity, index) => (
                       <div key={index} className="text-sm">
                         <span className="text-muted-foreground">
                           {activity.timestamp.toLocaleTimeString()}: 

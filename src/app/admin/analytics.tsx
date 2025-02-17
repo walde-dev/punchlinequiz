@@ -199,6 +199,10 @@ function AnonymousUsersCard() {
                           <span className="text-green-600">
                             Richtige Antwort: &quot;{activity.guess}&quot;
                           </span>
+                        ) : activity.type === "oauth_click" ? (
+                          <span className="text-blue-600">
+                            Google OAuth Button geklickt
+                          </span>
                         ) : (
                           <span className="text-red-600">
                             Falsche Antwort: &quot;{activity.guess}&quot;
