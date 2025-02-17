@@ -1,16 +1,26 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import PunchlinesTable from "./punchlines-table";
 import Analytics from "./analytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import UsersTable from "./users-table";
 
+const VALID_TABS = ["punchlines", "analytics", "users"] as const;
+type TabValue = typeof VALID_TABS[number];
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab");
+  
+  // Validate and set default tab
+  const activeTab = VALID_TABS.includes(tab as TabValue) 
+    ? tab as TabValue 
+    : "punchlines";
 
   useEffect(() => {
     if (status === "unauthenticated" || (status === "authenticated" && !session?.user?.isAdmin)) {
@@ -30,9 +40,13 @@ export default function AdminPage() {
     return null;
   }
 
+  const handleTabChange = (value: string) => {
+    router.push(`/admin?tab=${value}`);
+  };
+
   return (
     <div className="container py-8">
-      <Tabs defaultValue="punchlines">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="punchlines">Punchlines</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>

@@ -19,7 +19,6 @@ export type User = {
 export async function getUsers() {
   await requireAdmin();
 
-  // Get all users with their solved punchlines count
   const result = await db
     .select({
       id: users.id,
@@ -28,15 +27,22 @@ export async function getUsers() {
       image: users.image,
       isAdmin: users.isAdmin,
       onboardingCompleted: users.onboardingCompleted,
-      createdAt: sql<number>`unixepoch(${users.emailVerified})`.as("created_at"),
-      solvedCount: sql<number>`(
-        SELECT COUNT(*)
-        FROM ${solvedPunchlines}
-        WHERE ${solvedPunchlines.userId} = ${users.id}
-      )`.as("solved_count"),
+      createdAt: users.emailVerified,
+      solvedCount: sql<number>`count(${solvedPunchlines.id})`.as("solved_count"),
     })
     .from(users)
-    .orderBy(sql`solved_count DESC`);
+    .leftJoin(
+      solvedPunchlines,
+      sql`${users.id} = ${solvedPunchlines.userId}`
+    )
+    .groupBy(users.id, users.name, users.email, users.image, users.isAdmin, users.onboardingCompleted, users.emailVerified)
+    .orderBy(
+      sql`${users.isAdmin} DESC`,
+      sql`solved_count DESC`
+    );
 
-  return result;
+  return result.map(user => ({
+    ...user,
+    createdAt: user.createdAt?.getTime() ?? Date.now(),
+  }));
 } 

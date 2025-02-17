@@ -1,20 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getRandomPunchline, validateGuess } from "../actions/game";
+import { getRandomPunchline, validateGuess, startNewGame } from "../actions/game";
 import { type Punchline } from "../actions/punchlines";
 
-type RandomPunchline = Omit<Punchline, "perfectSolution" | "acceptableSolutions"> & {
-  acceptableSolutions: string[];
-};
+type RandomPunchline = Omit<Punchline, "perfectSolution" | "acceptableSolutions">;
 
-export function useRandomPunchline() {
+export function useRandomPunchline(fingerprint?: string) {
   return useQuery({
-    queryKey: ["randomPunchline"] as const,
+    queryKey: ["randomPunchline", fingerprint] as const,
     queryFn: async () => {
-      const punchline = await getRandomPunchline();
+      const punchline = await startNewGame(fingerprint ?? "");
       if (!punchline) { 
         throw new Error("Failed to fetch random punchline");
       }
-      return punchline as RandomPunchline;
+      return punchline;
     },
   });
 }

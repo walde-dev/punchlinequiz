@@ -20,6 +20,7 @@ import { useSession } from "next-auth/react";
 import AuthDialog from "~/components/auth/auth-dialog";
 import ReactConfetti from "react-confetti";
 import { useWindowSize } from "react-use";
+import { useFingerprint } from "../hooks/useFingerprint";
 
 const MAX_FREE_PLAYS = 3;
 const PLAYS_RESET_HOURS = 24;
@@ -59,13 +60,14 @@ function formatPunchlineText(text: string) {
 export default function PlayPage() {
   const formRef = useRef<HTMLFormElement>(null);
   const albumRef = useRef<HTMLDivElement>(null);
+  const { fingerprint, isLoading: isFingerprintLoading } = useFingerprint();
   const {
     data: punchline,
     refetch,
-    isLoading,
+    isLoading: isPunchlineLoading,
     isFetching,
     isError,
-  } = useRandomPunchline();
+  } = useRandomPunchline(fingerprint ?? undefined);
   const mutation = useValidateGuess();
   const { toast } = useToast();
   const { data: session, status } = useSession();
@@ -142,6 +144,9 @@ export default function PlayPage() {
     }
 
     const formData = new FormData(e.currentTarget);
+    if (fingerprint) {
+      formData.append("fingerprint", fingerprint);
+    }
 
     try {
       const result = await mutation.mutateAsync(formData, {
@@ -255,17 +260,17 @@ export default function PlayPage() {
           numberOfPieces={200}
         />
       )}
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center px-2 md:px-4">
         <div className="w-full">
-          <Card>
-            <CardHeader>
-              <CardTitle>Errate die fehlenden Wörter</CardTitle>
-              <CardDescription>
+          <Card className="md:p-2">
+            <CardHeader className="px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-6">
+              <CardTitle className="text-lg md:text-2xl">Errate die fehlenden Wörter</CardTitle>
+              <CardDescription className="text-sm">
                 Rate die fehlenden Wörter in der Punchline
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {isLoading || isFetching ? (
+            <CardContent className="space-y-4 px-4 md:space-y-6 md:px-6">
+              {isPunchlineLoading || isFetching || isFingerprintLoading ? (
                 <div className="space-y-4">
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-4 w-1/2" />
@@ -273,14 +278,14 @@ export default function PlayPage() {
                 </div>
               ) : punchline ? (
                 <div
-                  className={`grid gap-6 ${lastGuess?.isCorrect ? "grid-cols-1 md:grid-cols-[1fr,300px]" : "grid-cols-1"}`}
+                  className={`grid gap-4 md:gap-6 ${lastGuess?.isCorrect ? "grid-cols-1 md:grid-cols-[1fr,300px]" : "grid-cols-1"}`}
                 >
-                  <div className="space-y-6">
-                    <div className="flex flex-col items-center space-y-4 text-center">
-                      <h3 className="font-medium text-muted-foreground">
+                  <div className="space-y-4 md:space-y-6">
+                    <div className="flex flex-col items-center space-y-2 text-center md:space-y-4">
+                      <h3 className="text-sm font-medium text-muted-foreground md:text-base">
                         Punchline:
                       </h3>
-                      <p className="text-3xl font-bold leading-normal md:text-4xl">
+                      <p className="text-xl font-bold leading-normal md:text-4xl">
                         {formatPunchlineText(
                           lastGuess?.isCorrect && lastGuess.punchline
                             ? lastGuess.punchline.line
@@ -289,11 +294,11 @@ export default function PlayPage() {
                       </p>
                     </div>
                     {lastGuess?.isCorrect && lastGuess.punchline && (
-                      <div className="space-y-4 duration-500 animate-in slide-in-from-bottom">
-                        <Alert>
+                      <div className="space-y-3 duration-500 animate-in slide-in-from-bottom md:space-y-4">
+                        <Alert className="py-2 md:py-4">
                           <CheckCircle2 className="h-4 w-4" />
                           <AlertTitle>Richtig!</AlertTitle>
-                          <AlertDescription>
+                          <AlertDescription className="text-sm md:text-base">
                             <p>
                               Die perfekte Lösung war: &quot;
                               {lastGuess.punchline.perfectSolution}&quot;
@@ -302,8 +307,8 @@ export default function PlayPage() {
                         </Alert>
                         <div className="flex justify-center">
                           <Button
-                            size="lg"
-                            className="bg-green-600 text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl"
+                            size="default"
+                            className="bg-green-600 text-white shadow-lg transition-all hover:bg-green-700 hover:shadow-xl md:size-lg"
                             onClick={() => {
                               setLastGuess(null);
                               refetch();
@@ -318,12 +323,12 @@ export default function PlayPage() {
                   {lastGuess?.isCorrect && lastGuess.punchline && (
                     <div
                       ref={albumRef}
-                      className="h-fit space-y-2 rounded-lg border p-4 duration-500 animate-in slide-in-from-bottom md:slide-in-from-right"
+                      className="h-fit space-y-2 rounded-lg border p-3 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right"
                     >
-                      <h3 className="font-semibold">Song:</h3>
-                      <div className="space-y-4">
+                      <h3 className="text-sm font-semibold md:text-base">Song:</h3>
+                      <div className="space-y-3 md:space-y-4">
                         {lastGuess.punchline.song.album.image && (
-                          <div className="relative aspect-square w-full overflow-hidden rounded-md">
+                          <div className="relative mx-auto aspect-square w-32 overflow-hidden rounded-md md:mx-0 md:w-full">
                             <img
                               src={lastGuess.punchline.song.album.image}
                               alt={`${lastGuess.punchline.song.album.name} Cover`}
@@ -332,13 +337,13 @@ export default function PlayPage() {
                           </div>
                         )}
                         <div>
-                          <p className="font-medium">
+                          <p className="text-sm font-medium md:text-base">
                             {lastGuess.punchline.song.name}
                           </p>
-                          <p className="text-muted-foreground">
+                          <p className="text-sm text-muted-foreground">
                             {lastGuess.punchline.song.artist.name}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs text-muted-foreground md:text-sm">
                             Album: {lastGuess.punchline.song.album.name}
                           </p>
                         </div>
@@ -349,11 +354,11 @@ export default function PlayPage() {
               ) : null}
             </CardContent>
             {!lastGuess?.isCorrect && (
-              <CardFooter>
+              <CardFooter className="px-4 pb-4 md:px-6 md:pb-6">
                 <form
                   onSubmit={handleSubmit}
                   ref={formRef}
-                  className="w-full space-y-4"
+                  className="w-full space-y-3 md:space-y-4"
                 >
                   <input
                     type="hidden"
@@ -368,15 +373,17 @@ export default function PlayPage() {
                       }
                       required
                       disabled={
-                        isLoading || mutation.isPending || lastGuess?.isCorrect
+                        isPunchlineLoading || mutation.isPending || lastGuess?.isCorrect
                       }
                       autoComplete="off"
+                      className="text-sm md:text-base"
                     />
                     <Button
                       type="submit"
                       disabled={
-                        isLoading || mutation.isPending || lastGuess?.isCorrect
+                        isPunchlineLoading || mutation.isPending || lastGuess?.isCorrect
                       }
+                      className="text-sm md:text-base"
                     >
                       {mutation.isPending
                         ? "Prüfe..."
@@ -386,7 +393,7 @@ export default function PlayPage() {
                     </Button>
                   </div>
                   {lastGuess && !lastGuess.isCorrect && (
-                    <Alert variant="destructive">
+                    <Alert variant="destructive" className="py-2 text-sm md:py-4 md:text-base">
                       <XCircle className="h-4 w-4" />
                       <AlertTitle>Falsch</AlertTitle>
                       <AlertDescription>

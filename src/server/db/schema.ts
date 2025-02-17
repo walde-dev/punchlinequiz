@@ -255,3 +255,65 @@ export const solvedPunchlinesRelations = relations(solvedPunchlines, ({ one }) =
   user: one(users, { fields: [solvedPunchlines.userId], references: [users.id] }),
   punchline: one(punchlines, { fields: [solvedPunchlines.punchlineId], references: [punchlines.id] }),
 }));
+
+export const anonymousSessions = createTable(
+  "anonymous_session",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    fingerprint: text("fingerprint").notNull(), // Browser fingerprint
+    firstSeenAt: int("first_seen_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    lastSeenAt: int("last_seen_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    totalPlays: int("total_plays").default(0).notNull(),
+    correctGuesses: int("correct_guesses").default(0).notNull(),
+    convertedToUser: text("converted_to_user").references(() => users.id),
+  },
+  (session) => ({
+    fingerprintIdx: index("anonymous_session_fingerprint_idx").on(session.fingerprint),
+    convertedToUserIdx: index("anonymous_session_converted_user_idx").on(session.convertedToUser),
+  })
+);
+
+export const anonymousActivity = createTable(
+  "anonymous_activity",
+  {
+    id: int("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => anonymousSessions.id),
+    type: text("type", { enum: ["play", "correct_guess", "incorrect_guess"] }).notNull(),
+    punchlineId: int("punchline_id").references(() => punchlines.id),
+    guess: text("guess"),
+    timestamp: int("timestamp", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  },
+  (activity) => ({
+    sessionIdx: index("anonymous_activity_session_idx").on(activity.sessionId),
+    typeIdx: index("anonymous_activity_type_idx").on(activity.type),
+    timestampIdx: index("anonymous_activity_timestamp_idx").on(activity.timestamp),
+  })
+);
+
+// Add relations for anonymous sessions
+export const anonymousSessionsRelations = relations(anonymousSessions, ({ one, many }) => ({
+  activities: many(anonymousActivity),
+  convertedUser: one(users, {
+    fields: [anonymousSessions.convertedToUser],
+    references: [users.id],
+  }),
+}));
+
+export const anonymousActivityRelations = relations(anonymousActivity, ({ one }) => ({
+  session: one(anonymousSessions, {
+    fields: [anonymousActivity.sessionId],
+    references: [anonymousSessions.id],
+  }),
+  punchline: one(punchlines, {
+    fields: [anonymousActivity.punchlineId],
+    references: [punchlines.id],
+  }),
+}));
