@@ -114,9 +114,6 @@ export default function PlayPage() {
   const [showSolution, setShowSolution] = useState(false);
   const { width, height } = useWindowSize();
 
-  console.log(wrongAttempts);
-
-  console.log(lastGuess);
   // Initialize play count from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem("punchlineQuizPlays");
@@ -215,7 +212,7 @@ export default function PlayPage() {
           isCorrect: false,
           punchline: undefined,
         });
-        setWrongAttempts(prev => prev + 1);
+        setWrongAttempts((prev) => prev + 1);
       }
 
       if (result.isCorrect) {
@@ -401,7 +398,10 @@ export default function PlayPage() {
                               onClick={async () => {
                                 try {
                                   if (!punchline?.id) return;
-                                  const fullPunchline = await getFullPunchlineAfterCorrectGuess(punchline.id);
+                                  const fullPunchline =
+                                    await getFullPunchlineAfterCorrectGuess(
+                                      punchline.id,
+                                    );
                                   setLastGuess({
                                     isCorrect: false,
                                     punchline: fullPunchline,
@@ -411,7 +411,8 @@ export default function PlayPage() {
                                 } catch (error) {
                                   toast({
                                     title: "Fehler",
-                                    description: "Fehler beim Laden der Lösung.",
+                                    description:
+                                      "Fehler beim Laden der Lösung.",
                                     variant: "destructive",
                                   });
                                 }
