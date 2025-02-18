@@ -114,6 +114,9 @@ export default function PlayPage() {
   const [showSolution, setShowSolution] = useState(false);
   const { width, height } = useWindowSize();
 
+  console.log(wrongAttempts);
+
+  console.log(lastGuess);
   // Initialize play count from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem("punchlineQuizPlays");
@@ -198,20 +201,21 @@ export default function PlayPage() {
             song: {
               name: result.punchline.song.name,
               artist: {
-                name: result.punchline.song.artist.name
+                name: result.punchline.song.artist.name,
               },
               album: {
                 name: result.punchline.song.album.name,
-                image: result.punchline.song.album.image
-              }
-            }
-          }
+                image: result.punchline.song.album.image,
+              },
+            },
+          },
         });
       } else {
         setLastGuess({
           isCorrect: false,
-          punchline: undefined
+          punchline: undefined,
         });
+        setWrongAttempts(prev => prev + 1);
       }
 
       if (result.isCorrect) {
@@ -346,9 +350,9 @@ export default function PlayPage() {
                     <p className="text-xl font-bold leading-normal md:text-4xl">
                       {formatPunchlineText(
                         lastGuess?.punchline
-                          ? ((!lastGuess.isCorrect && !showSolution) 
-                              ? punchline?.line 
-                              : lastGuess.punchline.line)
+                          ? !lastGuess.isCorrect && !showSolution
+                            ? punchline?.line
+                            : lastGuess.punchline.line
                           : (punchline?.line ?? ""),
                       )}
                     </p>
@@ -382,20 +386,35 @@ export default function PlayPage() {
                     )}
 
                     {/* Show solution after 3 wrong attempts */}
-                    {!lastGuess?.isCorrect && lastGuess?.punchline && (
+                    {!lastGuess?.isCorrect && wrongAttempts >= 3 && (
                       <div className="space-y-3 duration-500 animate-in slide-in-from-bottom md:space-y-4">
                         {!showSolution ? (
                           <div className="flex flex-col items-center gap-3">
                             <p className="text-center text-sm text-muted-foreground md:text-base">
-                              Du hast alle Versuche aufgebraucht. Möchtest du die Lösung sehen?
+                              Du hast alle Versuche aufgebraucht. Möchtest du
+                              die Lösung sehen?
                             </p>
                             <Button
                               size="default"
                               variant="outline"
                               className="md:size-lg"
-                              onClick={() => {
-                                setShowSolution(true);
-                                formRef.current?.reset();
+                              onClick={async () => {
+                                try {
+                                  if (!punchline?.id) return;
+                                  const fullPunchline = await getFullPunchlineAfterCorrectGuess(punchline.id);
+                                  setLastGuess({
+                                    isCorrect: false,
+                                    punchline: fullPunchline,
+                                  });
+                                  setShowSolution(true);
+                                  formRef.current?.reset();
+                                } catch (error) {
+                                  toast({
+                                    title: "Fehler",
+                                    description: "Fehler beim Laden der Lösung.",
+                                    variant: "destructive",
+                                  });
+                                }
                               }}
                             >
                               Lösung anzeigen
@@ -403,14 +422,19 @@ export default function PlayPage() {
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            <Alert variant="destructive" className="py-2 md:py-4">
+                            <Alert
+                              variant="destructive"
+                              className="py-2 md:py-4"
+                            >
                               <XCircle className="h-4 w-4" />
                               <AlertTitle>Falsch!</AlertTitle>
                               <AlertDescription className="text-sm md:text-base">
                                 <p>
                                   Die richtige Lösung war:{" "}
                                   <span className="rounded bg-background/80 px-1.5 py-0.5 font-medium text-foreground">
-                                    &quot;{lastGuess.punchline.perfectSolution}&quot;
+                                    &quot;
+                                    {lastGuess?.punchline?.perfectSolution}
+                                    &quot;
                                   </span>
                                 </p>
                               </AlertDescription>
@@ -437,7 +461,8 @@ export default function PlayPage() {
                   </div>
 
                   {/* Show song info when correct or solution is shown */}
-                  {((lastGuess?.isCorrect && lastGuess.punchline) || (lastGuess?.punchline && showSolution)) && (
+                  {((lastGuess?.isCorrect && lastGuess.punchline) ||
+                    (lastGuess?.punchline && showSolution)) && (
                     <div
                       ref={albumRef}
                       className="h-fit space-y-2 rounded-lg border p-3 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right"
@@ -498,7 +523,7 @@ export default function PlayPage() {
                         wrongAttempts >= 3
                       }
                       autoComplete="off"
-                      className="w-full min-h-[80px] resize-none text-sm md:text-base"
+                      className="min-h-[80px] w-full resize-none text-sm md:text-base"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
@@ -506,7 +531,7 @@ export default function PlayPage() {
                         }
                       }}
                     />
-                    <div className="flex gap-2 md:self-end md:w-auto md:min-w-[300px]">
+                    <div className="flex gap-2 md:w-auto md:min-w-[300px] md:self-end">
                       <Button
                         type="submit"
                         disabled={
@@ -537,7 +562,9 @@ export default function PlayPage() {
                         }}
                         className="flex-1 text-sm md:text-base"
                       >
-                        <RefreshCw className={`mr-2 h-4 w-4 ${(isPunchlineLoading || isFetching) ? "animate-spin" : ""}`} />
+                        <RefreshCw
+                          className={`mr-2 h-4 w-4 ${isPunchlineLoading || isFetching ? "animate-spin" : ""}`}
+                        />
                         {isPunchlineLoading || isFetching
                           ? "Lade..."
                           : "Neue Punchline"}
