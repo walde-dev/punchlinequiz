@@ -1,36 +1,32 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { importSong, searchSongs } from "../actions/spotify";
+import { importSong, searchSongs, searchArtists } from "../actions/spotify";
 
 export function useSpotifySearch(query: string) {
-  const isEnabled = typeof query === 'string' && query.length >= 3;
-  
   return useQuery({
-    queryKey: ["spotify-search", query],
-    queryFn: async ({ queryKey }) => {
-      const [_, searchQuery] = queryKey as [string, string];
-      
-      if (!searchQuery || searchQuery.length < 3) {
-        return [];
-      }
-
-      try {
-        const results = await searchSongs(searchQuery);
-        return results ?? [];
-      } catch (error) {
-        throw error;
-      }
+    queryKey: ["spotifySearch", query] as const,
+    queryFn: async () => {
+      if (!query || query.length <= 3) return [];
+      return searchSongs(query);
     },
-    enabled: isEnabled,
-    initialData: [],
-    gcTime: 0,
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-    retry: false,
+    enabled: query.length > 3,
+  });
+}
+
+export function useSearchArtists(query: string) {
+  return useQuery({
+    queryKey: ["spotifyArtists", query] as const,
+    queryFn: async () => {
+      if (!query || query.length <= 3) return [];
+      return searchArtists(query);
+    },
+    enabled: query.length > 3,
   });
 }
 
 export function useImportSong() {
   return useMutation({
-    mutationFn: importSong,
+    mutationFn: async (songId: string) => {
+      return importSong(songId);
+    },
   });
 }

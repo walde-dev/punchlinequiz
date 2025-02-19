@@ -113,6 +113,33 @@ function StatCard({
   );
 }
 
+function getActivityText(type: string): string {
+  switch (type) {
+    case "play":
+      return "hat eine Runde gespielt";
+    case "correct_guess":
+      return "hat eine richtige Antwort gegeben";
+    case "incorrect_guess":
+      return "hat eine falsche Antwort gegeben";
+    case "quiz_play":
+      return "hat eine Quiz-Runde gespielt";
+    case "quiz_correct_guess":
+      return "hat den Künstler richtig erraten";
+    case "quiz_incorrect_guess":
+      return "hat den falschen Künstler gewählt";
+    case "oauth_click":
+      return "hat auf Google Login geklickt";
+    case "profile_update":
+      return "hat sein Profil aktualisiert";
+    case "login":
+      return "hat sich eingeloggt";
+    case "logout":
+      return "hat sich ausgeloggt";
+    default:
+      return "hat eine Aktion ausgeführt";
+  }
+}
+
 function AnonymousUsersCard() {
   const [timeSpan, setTimeSpan] = useState<TimeSpan>("24h");
   const { data: stats, isLoading } = useAnonymousStats(timeSpan);
@@ -122,7 +149,7 @@ function AnonymousUsersCard() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Anonyme Benutzer</CardTitle>
+            <CardTitle>Aktivitäten</CardTitle>
             <Select
               value={timeSpan}
               onValueChange={(value: string) => setTimeSpan(value as TimeSpan)}
@@ -137,13 +164,11 @@ function AnonymousUsersCard() {
               </SelectContent>
             </Select>
           </div>
-          <CardDescription>
-            Statistiken über nicht angemeldete Benutzer
-          </CardDescription>
+          <CardDescription>Aktivitäten aller Benutzer</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex h-[200px] items-center justify-center">
-            <p className="text-muted-foreground">Lade Statistiken...</p>
+            <p className="text-muted-foreground">Lade Aktivitäten...</p>
           </div>
         </CardContent>
       </Card>
@@ -154,7 +179,7 @@ function AnonymousUsersCard() {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Anonyme Benutzer</CardTitle>
+          <CardTitle>Aktivitäten</CardTitle>
           <Select
             value={timeSpan}
             onValueChange={(value: string) => setTimeSpan(value as TimeSpan)}
@@ -169,9 +194,7 @@ function AnonymousUsersCard() {
             </SelectContent>
           </Select>
         </div>
-        <CardDescription>
-          Statistiken über nicht angemeldete Benutzer
-        </CardDescription>
+        <CardDescription>Aktivitäten aller Benutzer</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Stats Grid */}
@@ -198,12 +221,14 @@ function AnonymousUsersCard() {
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">
-              Erfolgsquote
+              Durchschnittliche Aktivität
             </p>
             <p className="text-2xl font-bold">
-              {stats.correctGuessRate.toFixed(1)}%
+              {stats.averagePlaysPerSession.toFixed(1)}
             </p>
-            <p className="text-xs text-muted-foreground">richtige Antworten</p>
+            <p className="text-xs text-muted-foreground">
+              Aktionen pro Session
+            </p>
           </div>
         </div>
 
@@ -215,54 +240,56 @@ function AnonymousUsersCard() {
               <div key={session.id} className="rounded-lg border p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <div>
-                    <p className="font-medium">
-                      Session {session.id.slice(0, 8)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Zuletzt aktiv: {session.lastSeenAt.toLocaleString()}
-                    </p>
+                    {session.user ? (
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={session.user.image ?? undefined} />
+                          <AvatarFallback>
+                            {session.user.name?.slice(0, 2) ?? "??"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">
+                            {session.user.name ?? "Unbekannt"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Zuletzt aktiv: {session.lastSeenAt.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-medium">
+                          Session {session.id.slice(0, 8)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Zuletzt aktiv: {session.lastSeenAt.toLocaleString()}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-sm">
-                      {session.correctGuesses} / {session.totalPlays} richtig
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {(
-                        (session.correctGuesses / session.totalPlays) *
-                        100
-                      ).toFixed(1)}
-                      % Erfolgsquote
+                      {session.totalPlays} Aktionen
                     </p>
                   </div>
                 </div>
                 {session.activities.length > 0 && (
                   <div className="mt-2 space-y-2">
                     {session.activities.map((activity, index) => (
-                      <div key={index} className="text-sm">
-                        <span className="text-muted-foreground">
-                          {activity.timestamp.toLocaleTimeString()}:
-                        </span>{" "}
-                        {activity.type === "play" ? (
-                          "Neue Runde gestartet"
-                        ) : activity.type === "correct_guess" ? (
-                          <span className="text-green-600">
-                            Richtige Antwort: &quot;{activity.guess}&quot;
+                      <div
+                        key={index}
+                        className="flex flex-col space-y-1 rounded-lg border p-3 text-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {session.user?.name || "Anonymer Benutzer"}{" "}
+                            {getActivityText(activity.type)}
                           </span>
-                        ) : activity.type === "oauth_click" ? (
-                          <span className="text-blue-600">
-                            Google OAuth Button geklickt
+                          <span className="text-xs text-muted-foreground">
+                            {activity.timestamp.toLocaleTimeString()}
                           </span>
-                        ) : (
-                          <span className="text-red-600">
-                            Falsche Antwort: &quot;{activity.guess}&quot;
-                          </span>
-                        )}
-                        {activity.punchline && (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            für &quot;{activity.punchline.line}&quot;
-                          </span>
-                        )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -279,53 +306,9 @@ function AnonymousUsersCard() {
 export default function Analytics() {
   const queryClient = useQueryClient();
   const [timeSpan, setTimeSpan] = useState<TimeSpan>("24h");
-  const { data: analytics, isLoading: isLoadingAnalytics } =
-    usePunchlineAnalytics();
   const { data: stats, isLoading: isLoadingStats } = useOverallStats(timeSpan);
-  const [expandedPunchlines, setExpandedPunchlines] = useState<number[]>([]);
-  const [editPunchlineId, setEditPunchlineId] = useState<number | null>(null);
-  const [sortConfig, setSortConfig] = useState<{
-    key: "line" | "song" | "totalSolves" | "solvePercentage";
-    direction: "asc" | "desc";
-  }>({ key: "totalSolves", direction: "desc" });
 
-  const toggleExpand = (id: number) => {
-    setExpandedPunchlines((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
-    );
-  };
-
-  const handleSort = (key: typeof sortConfig.key) => {
-    setSortConfig((prev) => ({
-      key,
-      direction: prev.key === key && prev.direction === "desc" ? "asc" : "desc",
-    }));
-  };
-
-  const sortedAnalytics = React.useMemo(() => {
-    if (!analytics) return [];
-
-    return [...analytics].sort((a, b) => {
-      const direction = sortConfig.direction === "asc" ? 1 : -1;
-
-      switch (sortConfig.key) {
-        case "line":
-          return direction * a.line.localeCompare(b.line);
-        case "song":
-          const songA = `${a.song.artist} - ${a.song.name}`;
-          const songB = `${b.song.artist} - ${b.song.name}`;
-          return direction * songA.localeCompare(songB);
-        case "totalSolves":
-          return direction * (a.totalSolves - b.totalSolves);
-        case "solvePercentage":
-          return direction * (a.solvePercentage - b.solvePercentage);
-        default:
-          return 0;
-      }
-    });
-  }, [analytics, sortConfig]);
-
-  if (isLoadingAnalytics || isLoadingStats) {
+  if (isLoadingStats) {
     return (
       <div className="flex h-[200px] items-center justify-center">
         <p className="text-muted-foreground">Lade Statistiken...</p>
@@ -353,17 +336,17 @@ export default function Analytics() {
           </Select>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2">
           <StatCard
-            title="Benutzer"
+            title="Registrierte Benutzer"
             value={stats?.totalUsers ?? 0}
             change={stats?.changes.users ?? 0}
             icon={Users}
           />
           <StatCard
-            title="Punchlines"
-            value={stats?.totalPunchlines ?? 0}
-            change={stats?.changes.punchlines ?? 0}
+            title="Aktive Sessions"
+            value={stats?.activeSessions ?? 0}
+            change={stats?.changes.activeSessions ?? 0}
             icon={(props) => (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -380,343 +363,10 @@ export default function Analytics() {
               </svg>
             )}
           />
-          <StatCard
-            title="Gelöste Punchlines"
-            value={stats?.totalSolves ?? 0}
-            change={stats?.changes.solves ?? 0}
-            icon={(props) => (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                {...props}
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <path d="M22 4 12 14.01l-3-3" />
-              </svg>
-            )}
-          />
-          <StatCard
-            title="Durchschnitt pro Benutzer"
-            value={Number((stats?.averageSolvesPerUser ?? 0).toFixed(1))}
-            change={stats?.changes.average ?? 0}
-            icon={(props) => (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                {...props}
-              >
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            )}
-          />
         </div>
 
-        <div className="m grid gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Punchline Statistiken</CardTitle>
-              <CardDescription>
-                Detaillierte Statistiken zu allen Punchlines und deren Lösungen
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead
-                        className={cn(
-                          "cursor-pointer select-none",
-                          sortConfig.key === "line" && "text-primary",
-                        )}
-                        onClick={() => handleSort("line")}
-                      >
-                        Punchline
-                      </TableHead>
-                      <TableHead
-                        className={cn(
-                          "cursor-pointer select-none",
-                          sortConfig.key === "song" && "text-primary",
-                        )}
-                        onClick={() => handleSort("song")}
-                      >
-                        Song
-                      </TableHead>
-                      <TableHead
-                        className={cn(
-                          "cursor-pointer select-none text-center",
-                          sortConfig.key === "totalSolves" && "text-primary",
-                        )}
-                        onClick={() => handleSort("totalSolves")}
-                      >
-                        Gelöst
-                      </TableHead>
-                      <TableHead
-                        className={cn(
-                          "cursor-pointer select-none",
-                          sortConfig.key === "solvePercentage" &&
-                            "text-primary",
-                        )}
-                        onClick={() => handleSort("solvePercentage")}
-                      >
-                        Quote
-                      </TableHead>
-                      <TableHead className="text-center">
-                        Falsche Antworten
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedAnalytics.map((punchline) => (
-                      <React.Fragment key={punchline.id}>
-                        <TableRow>
-                          <TableCell className="font-medium">
-                            {punchline.line}
-                          </TableCell>
-                          <TableCell>
-                            {punchline.song.artist} - {punchline.song.name}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="link" className="gap-2">
-                                  <span>{punchline.totalSolves}</span>
-                                  <Users className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-[625px]">
-                                <DialogHeader>
-                                  <DialogTitle>Punchline Details</DialogTitle>
-                                  <DialogDescription>
-                                    {punchline.line}
-                                    <div className="mt-2 text-sm">
-                                      {punchline.song.artist} -{" "}
-                                      {punchline.song.name}
-                                    </div>
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="mt-4">
-                                  <div className="mb-4 flex items-center justify-between">
-                                    <h4 className="font-medium">
-                                      Gelöst von {punchline.totalSolves}{" "}
-                                      Benutzern
-                                    </h4>
-                                    <div className="flex items-center gap-2">
-                                      <Progress
-                                        value={punchline.solvePercentage}
-                                        className="w-[60px]"
-                                      />
-                                      <span className="text-sm text-muted-foreground">
-                                        {punchline.solvePercentage.toFixed(1)}%
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-4">
-                                    {punchline.solvedBy.map((user) => (
-                                      <div
-                                        key={`${punchline.id}-${user.id}`}
-                                        className="flex items-center gap-3 rounded-lg border p-3"
-                                      >
-                                        <div className="relative">
-                                          <Avatar
-                                            className={cn(
-                                              "ring-2 ring-offset-2",
-                                              user.isAdmin
-                                                ? "ring-primary"
-                                                : "ring-transparent",
-                                            )}
-                                          >
-                                            <AvatarImage
-                                              src={user.image ?? undefined}
-                                            />
-                                            <AvatarFallback>
-                                              {user.name
-                                                ?.slice(0, 2)
-                                                .toUpperCase() ??
-                                                user.email
-                                                  .slice(0, 2)
-                                                  .toUpperCase()}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          {user.isAdmin && (
-                                            <TooltipProvider>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <div className="absolute -right-1 -top-1 rounded-full bg-background p-0.5">
-                                                    <ShieldCheck className="h-3 w-3 text-primary" />
-                                                  </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                  <p>Admin</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                            </TooltipProvider>
-                                          )}
-                                        </div>
-                                        <div className="flex flex-col">
-                                          <span className="font-medium">
-                                            {user.name ?? user.email}
-                                          </span>
-                                          <span className="text-sm text-muted-foreground">
-                                            Gelöst am{" "}
-                                            {user.solvedAt.toLocaleDateString()}
-                                          </span>
-                                          <span className="text-sm text-muted-foreground">
-                                            Lösung: &quot;{user.solution}&quot;
-                                          </span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Progress
-                                value={punchline.solvePercentage}
-                                className="w-[60px]"
-                              />
-                              <span className="text-sm text-muted-foreground">
-                                {punchline.solvePercentage.toFixed(1)}%
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="flex items-center gap-1.5"
-                                >
-                                  {punchline.wrongGuesses.length}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                align="end"
-                                className="w-96 p-0"
-                                sideOffset={5}
-                              >
-                                <div className="px-4 py-3">
-                                  <h4 className="mb-2 font-medium leading-none">
-                                    Falsche Antworten
-                                  </h4>
-                                  <p className="text-sm text-muted-foreground">
-                                    {punchline.wrongGuesses.length} verschiedene
-                                    falsche Antworten
-                                  </p>
-                                </div>
-                                <ScrollArea className="h-72">
-                                  <div className="p-4 pt-0">
-                                    <div className="space-y-4">
-                                      {punchline.wrongGuesses.map(
-                                        (guess, index) => (
-                                          <div
-                                            key={index}
-                                            className="flex items-center justify-between gap-4"
-                                          >
-                                            <div className="flex-1 space-y-1">
-                                              <p className="text-sm font-medium leading-none">
-                                                {guess.guess}
-                                              </p>
-                                              <p className="text-xs text-muted-foreground">
-                                                {formatDistanceToNow(
-                                                  guess.timestamp,
-                                                  {
-                                                    addSuffix: true,
-                                                    locale: de,
-                                                  },
-                                                )}
-                                              </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                              <p className="text-sm text-muted-foreground">
-                                                {guess.count}×
-                                              </p>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() =>
-                                                  setEditPunchlineId(
-                                                    punchline.id,
-                                                  )
-                                                }
-                                              >
-                                                <Edit2 className="h-4 w-4" />
-                                              </Button>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                                onClick={async (e) => {
-                                                  e.stopPropagation();
-                                                  try {
-                                                    await deleteWrongGuess(
-                                                      punchline.id,
-                                                      guess.guess,
-                                                    );
-                                                    queryClient.invalidateQueries(
-                                                      {
-                                                        queryKey: [
-                                                          "punchlineAnalytics",
-                                                        ],
-                                                      },
-                                                    );
-                                                    toast({
-                                                      title: "Erfolgreich",
-                                                      description:
-                                                        "Falsche Antwort wurde gelöscht.",
-                                                    });
-                                                  } catch (error) {
-                                                    toast({
-                                                      variant: "destructive",
-                                                      title: "Fehler",
-                                                      description:
-                                                        "Fehler beim Löschen der falschen Antwort.",
-                                                    });
-                                                  }
-                                                }}
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        ),
-                                      )}
-                                    </div>
-                                  </div>
-                                </ScrollArea>
-                              </PopoverContent>
-                            </Popover>
-                          </TableCell>
-                        </TableRow>
-                      </React.Fragment>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <AnonymousUsersCard />
       </div>
-      <EditPunchlineDialog
-        open={editPunchlineId !== null}
-        onOpenChange={(open) => !open && setEditPunchlineId(null)}
-        punchlineId={editPunchlineId}
-      />
     </>
   );
 }

@@ -174,7 +174,19 @@ export async function getRandomPunchline() {
         throw new Error("No punchlines found");
       }
 
+      // Type guard to ensure all required properties exist
+      if (!anyPunchline?.song?.artist || !anyPunchline?.song?.album) {
+        console.error("Invalid punchline data structure:", anyPunchline);
+        throw new Error("Invalid punchline data structure");
+      }
+
       return formatSafePunchline(anyPunchline);
+    }
+
+    // Type guard to ensure all required properties exist
+    if (!result?.song?.artist || !result?.song?.album) {
+      console.error("Invalid punchline data structure:", result);
+      throw new Error("Invalid punchline data structure");
     }
 
     return formatSafePunchline(result);
@@ -184,14 +196,15 @@ export async function getRandomPunchline() {
   }
 }
 
-// Helper function to format the punchline into a safe version
 function formatSafePunchline(
-  punchline: typeof punchlines.$inferSelect & {
-    song: typeof songs.$inferSelect & {
-      artist: typeof artists.$inferSelect;
-      album: typeof albums.$inferSelect;
+  punchline: NonNullable<typeof punchlines.$inferSelect & {
+    song: {
+      id: string;
+      name: string;
+      artist: NonNullable<typeof artists.$inferSelect>;
+      album: NonNullable<typeof albums.$inferSelect>;
     };
-  },
+  }>,
 ): SafePunchline {
   return {
     id: punchline.id,
@@ -342,4 +355,121 @@ export async function startNewGame(fingerprint: string) {
     console.error("Failed to start new game:", error);
     throw new Error("Failed to start new game");
   }
+}
+
+export type SafeQuizPunchline = {
+  id: number;
+  line: string;
+  song: {
+    id: string;
+    name: string;
+    artist: {
+      id: string;
+      name: string;
+    };
+    album: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+  };
+  correctArtist: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+  wrongArtists: {
+    id: string;
+    name: string;
+    image: string | null;
+  }[];
+};
+
+export async function getRandomQuizPunchline() {
+  try {
+    const punchlines = await db.query.quizPunchlines.findMany({
+      with: {
+        song: {
+          with: {
+            artist: true,
+            album: true,
+          },
+        },
+        correctArtist: true,
+        wrongArtist1: true,
+        wrongArtist2: true,
+      },
+    });
+
+    if (!punchlines || punchlines.length === 0) {
+      return null;
+    }
+
+    // Select a random punchline
+    const randomIndex = Math.floor(Math.random() * punchlines.length);
+    const selectedPunchline = punchlines[randomIndex];
+
+    // Type guard to ensure all required properties exist
+    if (!selectedPunchline?.song?.artist || !selectedPunchline?.song?.album || 
+        !selectedPunchline?.correctArtist || !selectedPunchline?.wrongArtist1 || !selectedPunchline?.wrongArtist2) {
+      console.error("Invalid quiz punchline data structure:", selectedPunchline);
+      return null;
+    }
+
+    return {
+      id: selectedPunchline.id,
+      line: selectedPunchline.line,
+      song: {
+        id: selectedPunchline.song.id,
+        name: selectedPunchline.song.name,
+        artist: {
+          id: selectedPunchline.song.artist.id,
+          name: selectedPunchline.song.artist.name,
+        },
+        album: {
+          id: selectedPunchline.song.album.id,
+          name: selectedPunchline.song.album.name,
+          image: selectedPunchline.song.album.image,
+        },
+      },
+      correctArtist: {
+        id: selectedPunchline.correctArtist.id,
+        name: selectedPunchline.correctArtist.name,
+        image: selectedPunchline.correctArtist.image,
+      },
+      wrongArtists: [
+        {
+          id: selectedPunchline.wrongArtist1.id,
+          name: selectedPunchline.wrongArtist1.name,
+          image: selectedPunchline.wrongArtist1.image,
+        },
+        {
+          id: selectedPunchline.wrongArtist2.id,
+          name: selectedPunchline.wrongArtist2.name,
+          image: selectedPunchline.wrongArtist2.image,
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Failed to fetch random quiz punchline:", error);
+    return null;
+  }
+}
+
+export async function startNewQuizGame(fingerprint: string) {
+  const anonymousSession = await getOrCreateAnonymousSession(fingerprint);
+
+  // Track play activity
+  await db.insert(anonymousActivity).values({
+    sessionId: anonymousSession.id,
+    type: "play",
+  });
+
+  // Get a random punchline
+  const punchline = await getRandomQuizPunchline();
+  if (!punchline) {
+    throw new Error("No quiz punchlines available");
+  }
+
+  return punchline;
 }
