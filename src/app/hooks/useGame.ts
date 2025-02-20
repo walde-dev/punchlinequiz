@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { startNewGame, validateGuess } from "../actions/game";
+import { startNewGame, validateGuess, startNewQuizGame } from "../actions/game";
 import type { Punchline } from "../actions/punchlines";
 
 export function useRandomPunchline(fingerprint?: string) {
@@ -28,6 +28,19 @@ export function useValidateGuess() {
       if (data.isCorrect) {
         queryClient.invalidateQueries({ queryKey: ["randomPunchline"] });
       }
+    },
+  });
+}
+
+export function useRandomQuizPunchline(fingerprint?: string) {
+  return useQuery({
+    queryKey: ["randomQuizPunchline", fingerprint] as const,
+    queryFn: async () => {
+      const punchline = await startNewQuizGame(fingerprint ?? "");
+      if (!punchline) { 
+        throw new Error("Failed to fetch random quiz punchline");
+      }
+      return punchline;
     },
   });
 } 

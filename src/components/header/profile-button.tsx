@@ -16,16 +16,28 @@ import {
 } from "../ui/dropdown-menu";
 import OnboardingDialog from "../onboarding-dialog";
 import Link from "next/link";
+import { useFingerprint } from "~/app/hooks/useFingerprint";
 
 export default function ProfileButton({ className }: { className?: string }) {
   const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const { fingerprint } = useFingerprint();
 
   const handleSignOut = async () => {
     try {
       setIsLoading(true);
+      // Track logout
+      if (fingerprint) {
+        const formData = new FormData();
+        formData.append("fingerprint", fingerprint);
+        formData.append("type", "logout");
+        await fetch("/api/track", {
+          method: "POST",
+          body: formData,
+        });
+      }
       await signOut({ callbackUrl: "/" });
     } catch (error) {
       console.error("Sign out error:", error);

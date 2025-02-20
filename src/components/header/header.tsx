@@ -6,10 +6,7 @@ import { DiscordLogoIcon } from "@radix-ui/react-icons";
 export default function Header() {
   return (
     <header className="flex w-full items-center justify-between">
-      <Link
-        href="/play"
-        className="text-xl transition-opacity hover:opacity-80"
-      >
+      <Link href="/" className="text-xl transition-opacity hover:opacity-80">
         punchline<span className="font-bold text-primary">/</span>
         <span className="font-bold">quiz</span>
       </Link>

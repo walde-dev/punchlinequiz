@@ -101,6 +101,37 @@ export const punchlines = createTable(
   })
 );
 
+export const quizPunchlines = createTable(
+  "quiz_punchline",
+  {
+    id: int("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+    line: text("line").notNull(),
+    songId: text("song_id")
+      .notNull()
+      .references(() => songs.id),
+    correctArtistId: text("correct_artist_id")
+      .notNull()
+      .references(() => artists.id),
+    wrongArtist1Id: text("wrong_artist_1_id")
+      .notNull()
+      .references(() => artists.id),
+    wrongArtist2Id: text("wrong_artist_2_id")
+      .notNull()
+      .references(() => artists.id),
+    createdById: text("created_by", { length: 255 })
+      .notNull()
+      .references(() => users.id),
+    createdAt: int("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    updatedAt: int("updated_at", { mode: "timestamp" }),
+  },
+  (punchline) => ({
+    createdByIdIdx: index("quiz_punchline_created_by_idx").on(punchline.createdById),
+    songIdx: index("quiz_punchline_song_idx").on(punchline.songId),
+  })
+);
+
 // Relations
 export const artistsRelations = relations(artists, ({ many }) => ({
   albums: many(albums),
@@ -128,6 +159,29 @@ export const punchlineRelations = relations(punchlines, ({ one, many }) => ({
     references: [users.id],
   }),
   solvedBy: many(solvedPunchlines),
+}));
+
+export const quizPunchlinesRelations = relations(quizPunchlines, ({ one }) => ({
+  song: one(songs, {
+    fields: [quizPunchlines.songId],
+    references: [songs.id],
+  }),
+  correctArtist: one(artists, {
+    fields: [quizPunchlines.correctArtistId],
+    references: [artists.id],
+  }),
+  wrongArtist1: one(artists, {
+    fields: [quizPunchlines.wrongArtist1Id],
+    references: [artists.id],
+  }),
+  wrongArtist2: one(artists, {
+    fields: [quizPunchlines.wrongArtist2Id],
+    references: [artists.id],
+  }),
+  createdBy: one(users, {
+    fields: [quizPunchlines.createdById],
+    references: [users.id],
+  }),
 }));
 
 export const posts = createTable(
@@ -284,7 +338,22 @@ export const anonymousActivity = createTable(
     sessionId: text("session_id")
       .notNull()
       .references(() => anonymousSessions.id),
-    type: text("type", { enum: ["play", "correct_guess", "incorrect_guess", "oauth_click"] }).notNull(),
+    type: text("type", { 
+      enum: [
+        "play",
+        "correct_guess",
+        "incorrect_guess",
+        "oauth_click",
+        "quiz_play",
+        "quiz_correct_guess",
+        "quiz_incorrect_guess",
+        "game_start",
+        "game_complete",
+        "profile_update",
+        "login",
+        "logout"
+      ] 
+    }).notNull(),
     punchlineId: int("punchline_id").references(() => punchlines.id),
     guess: text("guess"),
     timestamp: int("timestamp", { mode: "timestamp" })
@@ -317,3 +386,32 @@ export const anonymousActivityRelations = relations(anonymousActivity, ({ one })
     references: [punchlines.id],
   }),
 }));
+
+export const quizGuesses = createTable(
+  "quiz_guesses",
+  {
+    id: int("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => anonymousSessions.id),
+    punchlineId: int("punchline_id")
+      .notNull()
+      .references(() => punchlines.id),
+    artistId: text("artist_id")
+      .notNull()
+      .references(() => artists.id),
+    isCorrect: int("is_correct", { mode: "boolean" })
+      .notNull(),
+    userId: text("user_id")
+      .references(() => users.id),
+    createdAt: int("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  },
+  (guess) => ({
+    sessionIdx: index("quiz_guesses_session_idx").on(guess.sessionId),
+    punchlineIdx: index("quiz_guesses_punchline_idx").on(guess.punchlineId),
+    artistIdx: index("quiz_guesses_artist_idx").on(guess.artistId),
+    userIdIdx: index("quiz_guesses_user_idx").on(guess.userId),
+  })
+);

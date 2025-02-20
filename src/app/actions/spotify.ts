@@ -2,7 +2,7 @@
 
 import { db } from "~/server/db";
 import { albums, artists, songs, accounts } from "~/server/db/schema";
-import { getAlbum, getArtist, getTrack, searchTrack } from "~/server/spotify";
+import { getAlbum, getArtist, getTrack, searchTrack, searchArtist } from "~/server/spotify";
 import { eq, and } from "drizzle-orm";
 
 export async function hasSpotifyAccount(userId: string) {
@@ -17,6 +17,15 @@ export async function searchSongs(query: string) {
   return tracks;
 }
 
+export async function searchArtists(query: string) {
+  const artists = await searchArtist(query);
+  return artists.map(artist => ({
+    id: artist.id,
+    name: artist.name,
+    image: artist.images[0]?.url,
+  }));
+}
+
 export async function importSong(songId: string) {
   const track = await getTrack(songId);
 
@@ -28,11 +37,17 @@ export async function importSong(songId: string) {
   const artistId = track.artists[0]?.id;
   if (!artistId) throw new Error("Artist not found");
   const artistData = await getArtist(artistId);
+  if (!artistData) {
+    throw new Error(`Failed to fetch artist data for ID: ${artistId}`);
+  }
 
   // Get album details
   const albumId = track.album.id;
   if (!albumId) throw new Error("Album not found");
   const albumData = await getAlbum(albumId);
+  if (!albumData) {
+    throw new Error(`Failed to fetch album data for ID: ${albumId}`);
+  }
 
   // Import artist if not exists
   const existingArtist = await db.query.artists.findFirst({

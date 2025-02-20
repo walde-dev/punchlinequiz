@@ -1,13 +1,13 @@
 "use server";
 
-import { sql, and, eq } from "drizzle-orm";
+import { sql, and, eq, desc } from "drizzle-orm";
 import { db } from "~/server/db";
 import {
-  punchlines,
-  solvedPunchlines,
-  users,
   anonymousSessions,
   anonymousActivity,
+  punchlines,
+  users,
+  solvedPunchlines,
 } from "~/server/db/schema";
 import { requireAdmin } from "~/server/auth";
 
@@ -148,14 +148,18 @@ export async function getOverallStats(timeSpan: TimeSpan = "24h") {
   }
 
   // Current period stats
-  const [currentUsers, currentPunchlines, currentSolves] = await Promise.all([
+  const [currentUsers, currentActiveSessions] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(users),
-    db.select({ count: sql<number>`count(*)` }).from(punchlines),
-    db.select({ count: sql<number>`count(*)` }).from(solvedPunchlines),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(anonymousSessions)
+      .where(
+        sql`${anonymousSessions.lastSeenAt} >= ${compareDate.getTime() / 1000}`,
+      ),
   ]);
 
   // Previous period stats
-  const [prevUsers, prevPunchlines, prevSolves] = await Promise.all([
+  const [prevUsers, prevActiveSessionsResult] = await Promise.all([
     db
       .select({
         count: sql<number>`count(*)`,
@@ -163,28 +167,20 @@ export async function getOverallStats(timeSpan: TimeSpan = "24h") {
       .from(users)
       .where(sql`${users.emailVerified} < ${compareDate.getTime() / 1000}`),
     db
-      .select({
-        count: sql<number>`count(*)`,
-      })
-      .from(punchlines)
-      .where(sql`${punchlines.createdAt} < ${compareDate.getTime() / 1000}`),
-    db
-      .select({
-        count: sql<number>`count(*)`,
-      })
-      .from(solvedPunchlines)
+      .select({ count: sql<number>`count(*)` })
+      .from(anonymousSessions)
       .where(
-        sql`${solvedPunchlines.solvedAt} < ${compareDate.getTime() / 1000}`,
+        sql`${anonymousSessions.lastSeenAt} >= ${
+          new Date(compareDate.getTime() - (now.getTime() - compareDate.getTime())).getTime() / 1000
+        } AND ${anonymousSessions.lastSeenAt} < ${compareDate.getTime() / 1000}`,
       ),
   ]);
 
   const totalUsers = currentUsers[0]?.count ?? 0;
-  const totalPunchlines = currentPunchlines[0]?.count ?? 0;
-  const totalSolves = currentSolves[0]?.count ?? 0;
+  const activeSessions = currentActiveSessions[0]?.count ?? 0;
 
   const prevTotalUsers = prevUsers[0]?.count ?? 0;
-  const prevTotalPunchlines = prevPunchlines[0]?.count ?? 0;
-  const prevTotalSolves = prevSolves[0]?.count ?? 0;
+  const prevActiveSessions = prevActiveSessionsResult[0]?.count ?? 0;
 
   // Calculate percentage changes
   const calculateChange = (current: number, previous: number) => {
@@ -194,19 +190,10 @@ export async function getOverallStats(timeSpan: TimeSpan = "24h") {
 
   return {
     totalUsers,
-    totalPunchlines,
-    totalSolves,
-    averageSolvesPerUser: totalUsers > 0 ? totalSolves / totalUsers : 0,
-    averageSolvesPerPunchline:
-      totalPunchlines > 0 ? totalSolves / totalPunchlines : 0,
+    activeSessions,
     changes: {
       users: calculateChange(totalUsers, prevTotalUsers),
-      punchlines: calculateChange(totalPunchlines, prevTotalPunchlines),
-      solves: calculateChange(totalSolves, prevTotalSolves),
-      average: calculateChange(
-        totalUsers > 0 ? totalSolves / totalUsers : 0,
-        prevTotalUsers > 0 ? prevTotalSolves / prevTotalUsers : 0,
-      ),
+      activeSessions: calculateChange(activeSessions, prevActiveSessions),
     },
   };
 }
@@ -224,10 +211,17 @@ export type AnonymousStats = {
     lastSeenAt: Date;
     totalPlays: number;
     correctGuesses: number;
+    convertedToUser?: string;
+    user?: {
+      id: string;
+      name: string | null;
+      image: string | null;
+    };
     activities: {
       type: string;
       guess?: string;
       timestamp: Date;
+      isLoggedIn: boolean;
       punchline?: {
         line: string;
       };
@@ -281,19 +275,44 @@ export async function getAnonymousStats(timeSpan: TimeSpan = "24h") {
 
   // Get recent activity
   const recentActivity = await db.query.anonymousSessions.findMany({
-    where: sql`${anonymousSessions.lastSeenAt} >= ${compareDate.getTime() / 1000}`,
+    orderBy: [desc(anonymousSessions.lastSeenAt)],
+    limit: 10,
     with: {
       activities: {
-        where: sql`${anonymousActivity.timestamp} >= ${compareDate.getTime() / 1000}`,
+        orderBy: [desc(anonymousActivity.timestamp)],
+        limit: 10,
         with: {
           punchline: true,
-        },
-        limit: 10,
+        }
       },
-    },
-    orderBy: sql`${anonymousSessions.lastSeenAt} DESC`,
-    limit: 10,
+      convertedUser: {
+        columns: {
+          id: true,
+          name: true,
+          image: true,
+        }
+      }
+    }
   });
+
+  const mappedActivity = recentActivity.map((session) => ({
+    id: session.id,
+    fingerprint: session.fingerprint,
+    lastSeenAt: session.lastSeenAt,
+    totalPlays: session.totalPlays,
+    correctGuesses: session.correctGuesses,
+    convertedToUser: session.convertedToUser,
+    user: session.convertedUser,
+    activities: session.activities.map((activity) => ({
+      type: activity.type,
+      guess: activity.guess,
+      timestamp: activity.timestamp,
+      isLoggedIn: !!session.convertedToUser,
+      punchline: activity.punchline ? {
+        line: activity.punchline.line
+      } : undefined
+    }))
+  }));
 
   const total = totalSessions[0]?.count ?? 0;
   const active = activeSessions[0]?.count ?? 0;
@@ -308,23 +327,7 @@ export async function getAnonymousStats(timeSpan: TimeSpan = "24h") {
     totalPlays: plays,
     averagePlaysPerSession: total > 0 ? plays / total : 0,
     correctGuessRate: plays > 0 ? (correct / plays) * 100 : 0,
-    recentActivity: recentActivity.map((session) => ({
-      id: session.id,
-      fingerprint: session.fingerprint,
-      lastSeenAt: new Date(session.lastSeenAt),
-      totalPlays: session.totalPlays,
-      correctGuesses: session.correctGuesses,
-      activities: session.activities.map((activity) => ({
-        type: activity.type,
-        guess: activity.guess ?? undefined,
-        timestamp: new Date(activity.timestamp),
-        punchline: activity.punchline
-          ? {
-              line: activity.punchline.line,
-            }
-          : undefined,
-      })),
-    })),
+    recentActivity: mappedActivity,
   };
 }
 
