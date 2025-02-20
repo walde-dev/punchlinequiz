@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { Eye } from "lucide-react";
+import { Eye, ShieldIcon } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -472,110 +472,54 @@ export default function UsersTable({ users }: UsersTableProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {users.map((user) => {
-        const loggedInActivities = user.activities?.filter(
-          (activity: Activity) => activity.isLoggedIn,
-        );
-        const anonymousActivities = user.activities?.filter(
-          (activity: Activity) => !activity.isLoggedIn,
-        );
-
-        return (
-          <div key={user.id} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.image ?? undefined} />
-                  <AvatarFallback>
-                    {user.name ? user.name[0] : "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium leading-none">
-                    {user.name ?? "Anonym"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {user.email ?? "Keine E-Mail"}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Aktivität</TableHead>
-                    <TableHead>Zeitpunkt</TableHead>
-                    <TableHead>Details</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loggedInActivities?.map((activity: Activity, index: number) => (
-                    <TableRow key={index}>
-                      <TableCell>{getActivityText(activity.type)}</TableCell>
-                      <TableCell>
-                        {formatDistanceToNow(new Date(activity.timestamp), {
-                          addSuffix: true,
-                          locale: de,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {activity.punchline && (
-                          <div>
-                            Punchline: &quot;{activity.punchline.line}&quot;
-                          </div>
-                        )}
-                        {activity.guess && (
-                          <div>Antwort: &quot;{activity.guess}&quot;</div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {anonymousActivities && anonymousActivities.length > 0 && (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Anonyme Aktivität</TableHead>
-                      <TableHead>Zeitpunkt</TableHead>
-                      <TableHead>Details</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {anonymousActivities.map(
-                      (activity: Activity, index: number) => (
-                        <TableRow key={index}>
-                          <TableCell>{getActivityText(activity.type)}</TableCell>
-                          <TableCell>
-                            {formatDistanceToNow(new Date(activity.timestamp), {
-                              addSuffix: true,
-                              locale: de,
-                            })}
-                          </TableCell>
-                          <TableCell>
-                            {activity.punchline && (
-                              <div>
-                                Punchline: &quot;{activity.punchline.line}&quot;
-                              </div>
-                            )}
-                            {activity.guess && (
-                              <div>Antwort: &quot;{activity.guess}&quot;</div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ),
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        );
-      })}
+    <div>
+      <h1 className="mb-4 text-3xl font-bold">Benutzer</h1>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Benutzer</TableHead>
+              <TableHead>ID</TableHead>
+              <TableHead>E-Mail</TableHead>
+              <TableHead>Registriert am</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow 
+                key={user.id}
+                className={cn(user.isAdmin && "border-l-4 border-l-primary")}
+              >
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={user.image ?? undefined} />
+                      <AvatarFallback>
+                        {user.name?.slice(0, 2).toUpperCase() ?? "??"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{user.name ?? "Unbekannt"}</span>
+                      {user.isAdmin && (
+                        <ShieldIcon className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="font-mono text-sm">{user.id}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>
+                  {new Date(user.createdAt).toLocaleDateString("de-DE", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

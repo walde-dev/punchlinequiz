@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Progress } from "~/components/ui/progress";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "~/lib/utils";
 import React from "react";
 import { deleteWrongGuess, type TimeSpan } from "../actions/analytics";
@@ -67,6 +67,12 @@ import { de } from "date-fns/locale";
 import EditPunchlineDialog from "./analytics/edit-punchline-dialog";
 import { toast } from "~/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Tabs,
+  TabsList,
+  TabsContent,
+  TabsTrigger,
+} from "~/components/ui/tabs";
 
 function StatCard({
   title,
@@ -143,6 +149,26 @@ function getActivityText(type: string): string {
 function AnonymousUsersCard() {
   const [timeSpan, setTimeSpan] = useState<TimeSpan>("24h");
   const { data: stats, isLoading } = useAnonymousStats(timeSpan);
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // When data changes, only expand the most recent session
+    if (stats?.recentActivity?.[0]?.id) {
+      setExpandedSessions(new Set([stats.recentActivity[0].id]));
+    }
+  }, [stats]);
+
+  const toggleSession = (sessionId: string) => {
+    setExpandedSessions(prev => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) {
+        next.delete(sessionId);
+      } else {
+        next.add(sessionId);
+      }
+      return next;
+    });
+  };
 
   if (isLoading || !stats) {
     return (
@@ -196,108 +222,193 @@ function AnonymousUsersCard() {
         </div>
         <CardDescription>Aktivitäten aller Benutzer</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Aktive Sessions
-            </p>
-            <p className="text-2xl font-bold">{stats.activeSessions}</p>
-            <p className="text-xs text-muted-foreground">
-              von {stats.totalSessions} Gesamt
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Konversionsrate
-            </p>
-            <p className="text-2xl font-bold">
-              {stats.conversionRate.toFixed(1)}%
-            </p>
-            <p className="text-xs text-muted-foreground">
-              zu registrierten Nutzern
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Durchschnittliche Aktivität
-            </p>
-            <p className="text-2xl font-bold">
-              {stats.averagePlaysPerSession.toFixed(1)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Aktionen pro Session
-            </p>
-          </div>
-        </div>
+      <CardContent>
+        <Tabs defaultValue="anonymous" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="anonymous">Anonyme Benutzer</TabsTrigger>
+            <TabsTrigger value="logged-in">Eingeloggte Benutzer</TabsTrigger>
+          </TabsList>
 
-        {/* Recent Activity */}
-        <div>
-          <h4 className="mb-4 text-sm font-medium">Letzte Aktivitäten</h4>
-          <div className="space-y-4">
-            {stats.recentActivity.map((session) => (
-              <div key={session.id} className="rounded-lg border p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <div>
-                    {session.user ? (
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={session.user.image ?? undefined} />
-                          <AvatarFallback>
-                            {session.user.name?.slice(0, 2) ?? "??"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">
-                            {session.user.name ?? "Unbekannt"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Zuletzt aktiv: {session.lastSeenAt.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
+          <TabsContent value="anonymous" className="mt-4">
+            <div className="mb-6 grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Aktive Sessions
+                </p>
+                <p className="text-2xl font-bold">{stats.activeSessions}</p>
+                <p className="text-xs text-muted-foreground">
+                  von {stats.totalSessions} Gesamt
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Konversionsrate
+                </p>
+                <p className="text-2xl font-bold">
+                  {stats.conversionRate.toFixed(1)}%
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  zu registrierten Nutzern
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Erfolgsquote
+                </p>
+                <p className="text-2xl font-bold">
+                  {stats.correctGuessRate.toFixed(1)}%
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  richtige Antworten
+                </p>
+              </div>
+            </div>
+
+            <div className="max-h-[600px] space-y-4 overflow-y-auto">
+              {stats.recentActivity
+                .filter(session => !session.convertedToUser)
+                .map((session) => (
+                <div key={session.id} className="rounded-lg border p-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between p-0 hover:bg-transparent"
+                    onClick={() => toggleSession(session.id)}
+                  >
+                    <div>
+                      <p className="font-medium">
+                        Session {session.id.slice(0, 8)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Zuletzt aktiv: {session.lastSeenAt.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm">
+                        {session.correctGuesses} / {session.totalPlays} richtig
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {session.totalPlays > 0
+                          ? ((session.correctGuesses / session.totalPlays) * 100).toFixed(1)
+                          : "0"}% Erfolgsquote
+                      </p>
+                    </div>
+                  </Button>
+                  {expandedSessions.has(session.id) && session.activities.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {[...session.activities]
+                        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+                        .map((activity, index) => (
+                          <div
+                            key={index}
+                            className="flex flex-col space-y-1 rounded-lg border p-3 text-sm"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">
+                                Anonymer Benutzer {getActivityText(activity.type)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {activity.timestamp.toLocaleTimeString()}
+                              </span>
+                            </div>
+                            {activity.punchline && (
+                              <div className="text-sm text-muted-foreground">
+                                Punchline: &quot;{activity.punchline.line}&quot;
+                              </div>
+                            )}
+                            {activity.guess && (
+                              <div className={cn(
+                                "text-sm",
+                                activity.type === "correct_guess" ? "text-green-600" : "text-red-600"
+                              )}>
+                                Antwort: &quot;{activity.guess}&quot;
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="logged-in" className="mt-4">
+            <div className="max-h-[600px] space-y-4 overflow-y-auto">
+              {stats.recentActivity
+                .filter(session => session.convertedToUser)
+                .map((session) => (
+                <div key={session.id} className="rounded-lg border p-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between p-0 hover:bg-transparent"
+                    onClick={() => toggleSession(session.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={session.user?.image ?? undefined} />
+                        <AvatarFallback>
+                          {session.user?.name?.slice(0, 2) ?? "??"}
+                        </AvatarFallback>
+                      </Avatar>
                       <div>
                         <p className="font-medium">
-                          Session {session.id.slice(0, 8)}
+                          {session.user?.name ?? "Unbekannt"}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Zuletzt aktiv: {session.lastSeenAt.toLocaleString()}
                         </p>
                       </div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm">
-                      {session.totalPlays} Aktionen
-                    </p>
-                  </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm">
+                        {session.correctGuesses} / {session.totalPlays} richtig
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {session.totalPlays > 0
+                          ? ((session.correctGuesses / session.totalPlays) * 100).toFixed(1)
+                          : "0"}% Erfolgsquote
+                      </p>
+                    </div>
+                  </Button>
+                  {expandedSessions.has(session.id) && session.activities.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {[...session.activities]
+                        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+                        .map((activity, index) => (
+                          <div
+                            key={index}
+                            className="flex flex-col space-y-1 rounded-lg border p-3 text-sm"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">
+                                {session.user?.name || "Benutzer"} {getActivityText(activity.type)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {activity.timestamp.toLocaleTimeString()}
+                              </span>
+                            </div>
+                            {activity.punchline && (
+                              <div className="text-sm text-muted-foreground">
+                                Punchline: &quot;{activity.punchline.line}&quot;
+                              </div>
+                            )}
+                            {activity.guess && (
+                              <div className={cn(
+                                "text-sm",
+                                activity.type === "correct_guess" ? "text-green-600" : "text-red-600"
+                              )}>
+                                Antwort: &quot;{activity.guess}&quot;
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
-                {session.activities.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {session.activities.map((activity, index) => (
-                      <div
-                        key={index}
-                        className="flex flex-col space-y-1 rounded-lg border p-3 text-sm"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">
-                            {session.user?.name || "Anonymer Benutzer"}{" "}
-                            {getActivityText(activity.type)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {activity.timestamp.toLocaleTimeString()}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
