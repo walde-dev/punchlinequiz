@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -132,6 +132,14 @@ export default function QuizPage() {
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
   const { data: punchline, isLoading, error, refetch } = useRandomQuizPunchline(fingerprint ?? undefined);
 
+  const artists = useMemo(() => {
+    if (!punchline) return [];
+    return [
+      { ...punchline.correctArtist, isCorrect: true },
+      ...punchline.wrongArtists.map(artist => ({ ...artist, isCorrect: false })),
+    ].sort(() => Math.random() - 0.5);
+  }, [punchline]);
+
   // Track when a new quiz punchline is loaded
   useEffect(() => {
     if (fingerprint && punchline) {
@@ -146,11 +154,6 @@ export default function QuizPage() {
       }).catch(console.error);
     }
   }, [fingerprint, punchline]);
-
-  const artists: ArtistOption[] = punchline ? [
-    { ...punchline.correctArtist, isCorrect: true },
-    ...punchline.wrongArtists.map(artist => ({ ...artist, isCorrect: false })),
-  ].sort(() => Math.random() - 0.5) : [];
 
   const handleArtistSelect = async (artistId: string) => {
     if (isRevealing || isAnswerRevealed || !punchline || !fingerprint) return;
@@ -167,7 +170,15 @@ export default function QuizPage() {
       formData.append("artistId", artistId);
       await fetch("/api/track", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          fingerprint,
+          type: "quiz_play",
+          punchlineId: punchline.id.toString(),
+          artistId,
+        }),
       });
       setPlayCount(prev => prev + 1);
     } catch (error) {
@@ -175,7 +186,7 @@ export default function QuizPage() {
     }
 
     // Delay the reveal for suspense
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     const isCorrect = artistId === punchline.correctArtist.id;
     setIsAnswerRevealed(true);
@@ -191,13 +202,16 @@ export default function QuizPage() {
 
       // Track correct guess
       try {
-        const formData = new FormData();
-        formData.append("fingerprint", fingerprint);
-        formData.append("type", "quiz_correct_guess");
-        formData.append("punchlineId", punchline.id.toString());
         await fetch("/api/track", {
           method: "POST",
-          body: formData,
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            fingerprint,
+            type: "quiz_correct_guess",
+            punchlineId: punchline.id.toString(),
+          }),
         });
       } catch (error) {
         console.error("Failed to track correct guess:", error);
@@ -212,14 +226,17 @@ export default function QuizPage() {
 
       // Track incorrect guess
       try {
-        const formData = new FormData();
-        formData.append("fingerprint", fingerprint);
-        formData.append("type", "quiz_incorrect_guess");
-        formData.append("punchlineId", punchline.id.toString());
-        formData.append("artistId", artistId);
         await fetch("/api/track", {
           method: "POST",
-          body: formData,
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            fingerprint,
+            type: "quiz_incorrect_guess",
+            punchlineId: punchline.id.toString(),
+            artistId,
+          }),
         });
       } catch (error) {
         console.error("Failed to track incorrect guess:", error);
@@ -329,25 +346,25 @@ export default function QuizPage() {
       <div className="flex items-center justify-center px-2 md:px-4">
         <div className="w-full">
           <Card className="md:p-2">
-            <CardHeader className="px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-6">
-              <CardTitle className="text-lg md:text-2xl">
+            <CardHeader className="px-3 pb-2 pt-3 md:px-6 md:pb-6 md:pt-6">
+              <CardTitle className="text-base md:text-2xl">
                 Von welchem Künstler stammt diese Punchline?
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-xs md:text-sm">
                 Wähle den richtigen Künstler aus den drei Optionen
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 px-4 md:space-y-6 md:px-6">
-              <div className={`grid gap-4 md:gap-6 ${isAnswerRevealed ? "grid-cols-1 md:grid-cols-[1fr,300px]" : "grid-cols-1"}`}>
-                <div className="space-y-6">
-                  <h3 className="text-sm font-medium text-muted-foreground md:text-base">
+            <CardContent className="space-y-3 px-3 md:space-y-6 md:px-6">
+              <div className={`grid gap-3 md:gap-6 ${isAnswerRevealed ? "grid-cols-1 md:grid-cols-[1fr,300px]" : "grid-cols-1"}`}>
+                <div className="space-y-4 md:space-y-6">
+                  <h3 className="text-xs font-medium text-muted-foreground md:text-base">
                     Punchline:
                   </h3>
-                  <p className="text-xl font-bold leading-normal md:text-4xl">
+                  <p className="text-lg font-bold leading-normal md:text-4xl">
                     {formatPunchlineText(punchline.line)}
                   </p>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2 md:space-y-3">
                     {artists.map((artist) => (
                       <ArtistButton
                         key={artist.id}
@@ -378,9 +395,9 @@ export default function QuizPage() {
                   )}
 
                   {!isAnswerRevealed && wrongAttempts >= 3 && (
-                    <div className="space-y-3 duration-500 animate-in slide-in-from-bottom md:space-y-4">
-                      <div className="flex flex-col items-center gap-3">
-                        <p className="text-center text-sm text-muted-foreground md:text-base">
+                    <div className="space-y-2 duration-500 animate-in slide-in-from-bottom md:space-y-4">
+                      <div className="flex flex-col items-center gap-2 md:gap-3">
+                        <p className="text-center text-xs text-muted-foreground md:text-base">
                           Du hast alle Versuche aufgebraucht. Möchtest du
                           die Lösung sehen?
                         </p>
@@ -402,13 +419,13 @@ export default function QuizPage() {
                 </div>
 
                 {isAnswerRevealed && (
-                  <div className="h-fit space-y-2 rounded-lg border p-3 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right">
-                    <h3 className="text-sm font-semibold md:text-base">
+                  <div className="h-fit space-y-2 rounded-lg border p-2 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right">
+                    <h3 className="text-xs font-semibold md:text-base">
                       Song:
                     </h3>
-                    <div className="space-y-3 md:space-y-4">
+                    <div className="space-y-2 md:space-y-4">
                       {punchline.song.album.image && (
-                        <div className="relative mx-auto aspect-square w-32 overflow-hidden rounded-md md:mx-0 md:w-full">
+                        <div className="relative mx-auto aspect-square w-24 overflow-hidden rounded-md md:mx-0 md:w-full">
                           <img
                             src={punchline.song.album.image}
                             alt={`${punchline.song.album.name} Cover`}
@@ -417,13 +434,13 @@ export default function QuizPage() {
                         </div>
                       )}
                       <div>
-                        <p className="text-sm font-medium md:text-base">
+                        <p className="text-xs font-medium md:text-base">
                           {punchline.song.name}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {punchline.song.artist.name}
                         </p>
-                        <p className="text-xs text-muted-foreground md:text-sm">
+                        <p className="text-xs text-muted-foreground">
                           Album: {punchline.song.album.name}
                         </p>
                       </div>
@@ -432,15 +449,17 @@ export default function QuizPage() {
                 )}
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end gap-2 px-4 pb-4 md:px-6 md:pb-6">
-              <Button
-                variant="outline"
-                onClick={handleNext}
-                className="flex-1 text-sm md:text-base"
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Überspringen
-              </Button>
+            <CardFooter className="flex justify-end gap-2 px-3 pb-3 md:px-6 md:pb-6">
+              {(!isAnswerRevealed || selectedArtistId !== punchline.correctArtist.id) && (
+                <Button
+                  variant="outline"
+                  onClick={handleNext}
+                  className="flex-1 text-xs md:text-base"
+                >
+                  <RefreshCw className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+                  Überspringen
+                </Button>
+              )}
             </CardFooter>
           </Card>
         </div>

@@ -359,9 +359,6 @@ export default function PlayPage() {
                   className={`grid gap-4 md:gap-6 ${lastGuess?.isCorrect || (lastGuess?.punchline && showSolution) ? "grid-cols-1 md:grid-cols-[1fr,300px]" : "grid-cols-1"}`}
                 >
                   <div className="space-y-6">
-                    <h3 className="text-sm font-medium text-muted-foreground md:text-base">
-                      Punchline:
-                    </h3>
                     <p className="text-xl font-bold leading-normal md:text-4xl">
                       {formatPunchlineText(
                         lastGuess?.punchline
@@ -378,12 +375,6 @@ export default function PlayPage() {
                         <Alert className="py-2 md:py-4">
                           <CheckCircle2 className="h-4 w-4" />
                           <AlertTitle>Richtig!</AlertTitle>
-                          <AlertDescription className="text-sm md:text-base">
-                            <p>
-                              Die perfekte Lösung war: &quot;
-                              {lastGuess.punchline.perfectSolution}&quot;
-                            </p>
-                          </AlertDescription>
                         </Alert>
                         <div className="flex justify-center">
                           <Button
@@ -486,9 +477,6 @@ export default function PlayPage() {
                       ref={albumRef}
                       className="h-fit space-y-2 rounded-lg border p-3 duration-500 animate-in slide-in-from-bottom md:p-4 md:slide-in-from-right"
                     >
-                      <h3 className="text-sm font-semibold md:text-base">
-                        Song:
-                      </h3>
                       <div className="space-y-3 md:space-y-4">
                         {lastGuess.punchline.song.album.image && (
                           <div className="relative mx-auto aspect-square w-32 overflow-hidden rounded-md md:mx-0 md:w-full">
