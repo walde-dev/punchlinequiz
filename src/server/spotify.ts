@@ -1,51 +1,148 @@
-import SpotifyWebApi from "spotify-web-api-node";
 import { env } from "~/env";
 
-export const spotifyApi = new SpotifyWebApi({
-  clientId: env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
-  clientSecret: env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: `${env.NEXT_PUBLIC_APP_URL}/api/spotify/callback`,
-});
+interface SpotifyImage {
+  url: string;
+  height: number;
+  width: number;
+}
 
-let tokenExpirationTime = 0;
+interface SpotifyArtist {
+  id: string;
+  name: string;
+  images: SpotifyImage[];
+  external_urls: {
+    spotify: string;
+  };
+}
 
-async function ensureAccessToken() {
-  console.log("Checking Spotify token..."); // Debug log
-  if (Date.now() > tokenExpirationTime - 1000) {
-    console.log("Token expired, refreshing..."); // Debug log
-    const data = await spotifyApi.clientCredentialsGrant();
-    spotifyApi.setAccessToken(data.body.access_token);
-    tokenExpirationTime = Date.now() + data.body.expires_in * 1000;
-    console.log("Token refreshed successfully"); // Debug log
+interface SpotifyAlbum {
+  id: string;
+  name: string;
+  images: SpotifyImage[];
+  release_date: string;
+  external_urls: {
+    spotify: string;
+  };
+}
+
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  artists: SpotifyArtist[];
+  album: SpotifyAlbum;
+  external_urls: {
+    spotify: string;
+  };
+}
+
+interface SpotifySearchResponse {
+  tracks?: {
+    items: SpotifyTrack[];
+  };
+  artists?: {
+    items: SpotifyArtist[];
+  };
+}
+
+async function getAccessToken(): Promise<string> {
+  const clientId = env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
+  const clientSecret = env.SPOTIFY_CLIENT_SECRET;
+
+  const response = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString(
+        "base64",
+      )}`,
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+export async function searchTrack(query: string): Promise<SpotifyTrack[]> {
+  const accessToken = await getAccessToken();
+
+  const response = await fetch(
+    `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+      query,
+    )}&type=track&limit=10`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  const data: SpotifySearchResponse = await response.json();
+  return data.tracks?.items ?? [];
+}
+
+export async function searchArtist(query: string): Promise<SpotifyArtist[]> {
+  const accessToken = await getAccessToken();
+
+  const response = await fetch(
+    `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+      query,
+    )}&type=artist&limit=10`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  const data: SpotifySearchResponse = await response.json();
+  return data.artists?.items ?? [];
+}
+
+export async function getTrack(id: string): Promise<SpotifyTrack | null> {
+  const accessToken = await getAccessToken();
+
+  const response = await fetch(`https://api.spotify.com/v1/tracks/${id}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
   }
+
+  return response.json();
 }
 
-export async function searchTrack(query: string) {
-  console.log("searchTrack called with query:", query); // Debug log
-  await ensureAccessToken();
-  const result = await spotifyApi.searchTracks(query);
-  console.log(
-    "Spotify API response:",
-    result.body.tracks?.items?.length,
-    "items",
-  ); // Debug log
-  return result.body.tracks?.items ?? [];
+export async function getArtist(id: string): Promise<SpotifyArtist | null> {
+  const accessToken = await getAccessToken();
+
+  const response = await fetch(`https://api.spotify.com/v1/artists/${id}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
 }
 
-export async function getTrack(id: string) {
-  await ensureAccessToken();
-  const result = await spotifyApi.getTrack(id);
-  return result.body;
-}
+export async function getAlbum(id: string): Promise<SpotifyAlbum | null> {
+  const accessToken = await getAccessToken();
 
-export async function getArtist(id: string) {
-  await ensureAccessToken();
-  const result = await spotifyApi.getArtist(id);
-  return result.body;
-}
+  const response = await fetch(`https://api.spotify.com/v1/albums/${id}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
-export async function getAlbum(id: string) {
-  await ensureAccessToken();
-  const result = await spotifyApi.getAlbum(id);
-  return result.body;
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
 }

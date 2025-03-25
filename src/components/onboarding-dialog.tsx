@@ -14,6 +14,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useSession } from "next-auth/react";
 import { useToast } from "./ui/use-toast";
+import { useFingerprint } from "~/app/hooks/useFingerprint";
 
 interface OnboardingDialogProps {
   open?: boolean;
@@ -27,6 +28,7 @@ export default function OnboardingDialog({ open: controlledOpen, onOpenChange }:
   const [avatarUrl, setAvatarUrl] = useState(session?.user?.image ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { fingerprint } = useFingerprint();
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
@@ -66,6 +68,18 @@ export default function OnboardingDialog({ open: controlledOpen, onOpenChange }:
       }
 
       await update({ name: username, image: avatarUrl });
+
+      // Track profile update
+      if (fingerprint) {
+        const formData = new FormData();
+        formData.append("fingerprint", fingerprint);
+        formData.append("type", "profile_update");
+        await fetch("/api/track", {
+          method: "POST",
+          body: formData,
+        });
+      }
+
       setIsOpen?.(false);
       toast({
         title: "Erfolgreich gespeichert",

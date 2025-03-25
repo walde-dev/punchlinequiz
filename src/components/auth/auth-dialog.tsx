@@ -25,7 +25,7 @@ export default function AuthDialog({
   trigger, 
   open, 
   onOpenChange,
-  callbackUrl = "/play"
+  callbackUrl = "/play/finishing-lines"
 }: AuthDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = open !== undefined;
